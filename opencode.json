@@ -1,0 +1,10 @@
+{
+  "mcp": {
+    "servers": {
+      "hexlet": {
+        "type": "remote",
+        "url": "https://mcp.hexlet.io"
+      }
+    }
+  }
+}
