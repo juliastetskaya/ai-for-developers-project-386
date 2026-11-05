@@ -48,3 +48,17 @@ Do not bypass hooks (`--no-verify`) — CI re-runs the same checks.
 - Linter is **oxlint**, not ESLint (backend uses `--type-aware` via `oxlint-tsgolint`).
 - Frontend `typecheck` is `tsc -b` (project references), not plain `tsc --noEmit`.
 - Business rules worth knowing before changing booking logic: slots are sliced from a fixed working-hours window; any time overlap with **any** booking (of any meeting type) makes a slot unavailable globally; no auth/timezones/cancellation by design (see README).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
