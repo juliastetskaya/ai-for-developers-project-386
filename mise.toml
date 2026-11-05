@@ -1,0 +1,68 @@
+[settings]
+experimental = true
+
+[tools]
+node = "22.16.0"
+pnpm = "10.15.1"
+hk = "2.11.1"
+pitchfork = "2.33.1"
+
+[tasks.setup]
+description = "Install dependencies and generate the API SDK"
+run = "pnpm install && pnpm generate:api"
+
+[tasks."dev:backend"]
+description = "Run the backend in development mode"
+run = "pnpm dev:backend"
+
+[tasks."dev:frontend"]
+description = "Run the frontend in development mode"
+run = "pnpm dev:frontend"
+
+[tasks.build]
+description = "Build the backend and frontend"
+run = "pnpm build:backend && pnpm build:frontend"
+
+[tasks.lint]
+description = "Lint all packages"
+run = "pnpm lint"
+
+[tasks.typecheck]
+description = "Typecheck all packages"
+run = "pnpm typecheck"
+
+[tasks.test]
+description = "Run backend and frontend tests"
+run = "pnpm test:backend && pnpm test:frontend"
+
+[tasks."check:sdk"]
+description = "Verify the generated API SDK is up to date"
+run = """
+set -e
+SDK_DIR="packages/api-client/src/client"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+if [ -d "$SDK_DIR" ]; then
+  cp -R "$SDK_DIR" "$TMP_DIR/client-before"
+fi
+pnpm generate:api
+if [ -d "$TMP_DIR/client-before" ] && ! diff -r "$TMP_DIR/client-before" "$SDK_DIR"; then
+  echo "Generated SDK is out of date: regenerate it with 'pnpm generate:api'" >&2
+  exit 1
+fi
+"""
+
+[tasks.check]
+description = "Run all checks: lint, typecheck, tests, SDK freshness"
+depends = ["lint", "typecheck", "test", "check:sdk"]
+
+[daemons.backend]
+run = "exec pnpm dev:backend"
+ready_port = 3000
+
+[daemons.frontend]
+run = "exec pnpm dev:frontend"
+ready_port = 5173
+
+[daemon_groups]
+default = ["backend", "frontend"]

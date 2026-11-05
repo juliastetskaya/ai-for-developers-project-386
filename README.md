@@ -34,13 +34,43 @@
 
 ## Установка
 
-<!-- Опишите установку: клонирование, зависимости, переменные окружения -->
+Окружение разработки управляется через [mise](https://mise.jdx.dev/): версии инструментов (Node.js, pnpm, hk, pitchfork) зафиксированы в `mise.toml`.
 
 ```bash
 git clone https://github.com/juliastetskaya/ai-for-developers-project-386.git
 cd ai-for-developers-project-386
+mise install     # установить инструменты из mise.toml
+mise run setup   # установить зависимости и сгенерировать API SDK
 ```
 
 ## Использование
 
 <!-- Добавьте примеры запуска и запись asciinema — именно это смотрит работодатель -->
+
+### Команды mise
+
+- `mise run dev:backend` / `mise run dev:frontend` — запуск dev-серверов вручную
+- `mise run build` — сборка backend и frontend
+- `mise run lint` — линтинг всех пакетов
+- `mise run typecheck` — проверка типов во всех пакетах
+- `mise run test` — тесты backend и frontend
+- `mise run check` — все проверки разом: линтинг, типы, тесты и актуальность сгенерированного SDK (эта же команда запускается в GitHub Actions)
+
+### Фоновые серверы (демоны)
+
+Dev-серверы можно запускать как демоны через pitchfork:
+
+```bash
+mise daemons start    # запустить backend (порт 3000) и frontend (порт 5173)
+mise daemons ls       # состояние
+mise daemons logs     # логи
+mise daemons stop     # остановить
+```
+
+### Git-хуки
+
+Хуки настроены через [hk](https://hk.jdx.dev/) (конфиг — `hk.pkl`):
+
+- `pre-commit` — линтинг
+- `pre-push` — все проверки (`mise run check`)
+- `commit-msg` — проверка сообщения на соответствие Conventional Commits
