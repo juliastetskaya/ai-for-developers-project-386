@@ -66,7 +66,7 @@ Research по тикету [#10](https://github.com/juliastetskaya/ai-for-develo
 
 ## Побочный факт: Europe/Moscow
 
-- IANA tzdb 2026f, файл `europe`: `Zone Europe/Moscow ... 3:00 - MSK` — последняя строка без `UNTIL`: **фиксированный UTC+3 с 2014-10-26, DST-переходов нет**. `Europe/Moscow` — каноническое имя зоны в tzdb (в отличие от `Europe/Tbilisi`, которого в tzdb 2026f нет; каноническое имя — `Asia/Tbilisi`).
+- IANA tzdb 2026f, файл `europe`: `Zone Europe/Moscow ... 3:00 - MSK` — последняя строка без `UNTIL`: **фиксированный UTC+3 с 2014-10-26, DST-переходов нет**. `Europe/Moscow` — каноническое имя зоны в tzdb.
 
 ## Источники
 
