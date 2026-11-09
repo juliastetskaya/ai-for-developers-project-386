@@ -103,7 +103,7 @@ describe('OwnerDashboardPage', () => {
     expect(items[0]).toHaveTextContent('Tue 10 Nov 2026, 09:00')
     expect(items[0]).toHaveTextContent('Ada Lovelace')
     expect(items[0]).toHaveTextContent('ada@example.com')
-    expect(items[0]).toHaveTextContent('Please call me on my mobile.')
+    expect(items[0]).not.toHaveTextContent('Please call me on my mobile.')
     expect(items[1]).toHaveTextContent('Strategy call')
     expect(items[1]).toHaveTextContent('Tue 10 Nov 2026, 12:30')
     expect(items[1]).toHaveTextContent('Grace Hopper')

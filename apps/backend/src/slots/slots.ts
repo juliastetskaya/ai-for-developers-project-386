@@ -5,8 +5,29 @@ export const WORKING_WINDOW_START_HOUR = 9;
 export const WORKING_WINDOW_END_HOUR = 18;
 export const BOOKING_HORIZON_DAYS = 14;
 
-/** A half-open interval `[startAt, endAt)` in UTC ISO-8601. */
-export interface TimeInterval {
+function formatHour(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`;
+}
+
+/** Human-readable working hours, shared by UI-facing validation messages. */
+export const WORKING_WINDOW_LABEL =
+  `${formatHour(WORKING_WINDOW_START_HOUR)}–` +
+  `${formatHour(WORKING_WINDOW_END_HOUR)} ${OWNER_TIMEZONE}`;
+
+/** A free, bookable half-open interval `[startAt, endAt)` in UTC ISO-8601. */
+export interface Slot {
+  startAt: string;
+  endAt: string;
+}
+
+/** An existing Booking interval that blocks time, in UTC ISO-8601. */
+export interface BusyInterval {
+  startAt: string;
+  endAt: string;
+}
+
+/** The fixed working hours of one owner calendar day, in UTC ISO-8601. */
+export interface TimeWindow {
   startAt: string;
   endAt: string;
 }
@@ -19,7 +40,7 @@ export interface SliceSlotsInput {
 
 export interface FreeSlotsInput extends SliceSlotsInput {
   /** Existing bookings of any meeting type. */
-  busy: readonly TimeInterval[];
+  busy: readonly BusyInterval[];
   /** The instant to treat as "now". Slots that already started are dropped. */
   now: Date;
 }
@@ -71,8 +92,15 @@ export function ownerHorizon(now: Date): OwnerHorizon {
   };
 }
 
+/** The calendar date of a UTC instant in the owner timezone, as YYYY-MM-DD. */
+export function ownerDateOf(start: Date): string | null {
+  return DateTime.fromJSDate(start, { zone: 'utc' })
+    .setZone(OWNER_TIMEZONE)
+    .toISODate();
+}
+
 /** The fixed working window of a calendar day, in UTC ISO-8601. */
-export function dayWindow(date: string): TimeInterval {
+export function dayWindow(date: string): TimeWindow {
   const day = ownerDay(date);
 
   return {
@@ -104,7 +132,7 @@ export function dayWindow(date: string): TimeInterval {
 export function sliceSlotsForDay({
   date,
   durationMin,
-}: SliceSlotsInput): TimeInterval[] {
+}: SliceSlotsInput): Slot[] {
   if (!Number.isFinite(durationMin) || durationMin <= 0) {
     return [];
   }
@@ -118,7 +146,7 @@ export function sliceSlotsForDay({
   });
   const step = Duration.fromObject({ minutes: durationMin });
 
-  const slots: TimeInterval[] = [];
+  const slots: Slot[] = [];
   let start = day.set({
     hour: WORKING_WINDOW_START_HOUR,
     minute: 0,
@@ -139,9 +167,50 @@ export function sliceSlotsForDay({
 }
 
 /** True when half-open intervals `[start, end)` share real time. */
-export function intervalsOverlap(a: TimeInterval, b: TimeInterval): boolean {
+export function intervalsOverlap(
+  a: { startAt: string; endAt: string },
+  b: { startAt: string; endAt: string },
+): boolean {
   return new Date(a.startAt) < new Date(b.endAt) &&
     new Date(a.endAt) > new Date(b.startAt);
+}
+
+/**
+ * True when `startAt` is inside the day's working window and the meeting ends
+ * at or before the window close.
+ */
+export function isWithinWorkingWindow(
+  date: string,
+  startAt: string,
+  durationMin: number,
+): boolean {
+  if (!Number.isFinite(durationMin) || durationMin <= 0) {
+    return false;
+  }
+
+  const window = dayWindow(date);
+  const startMs = new Date(startAt).getTime();
+
+  return (
+    startMs >= new Date(window.startAt).getTime() &&
+    startMs + durationMin * 60_000 <= new Date(window.endAt).getTime()
+  );
+}
+
+/**
+ * True when `startAt` is exactly one of the slot starts of the day's duration
+ * grid: the same rule the availability endpoint applies.
+ */
+export function isValidSlotStart(
+  date: string,
+  durationMin: number,
+  startAt: string,
+): boolean {
+  const startMs = new Date(startAt).getTime();
+
+  return sliceSlotsForDay({ date, durationMin }).some(
+    (slot) => new Date(slot.startAt).getTime() === startMs,
+  );
 }
 
 /**
@@ -154,7 +223,7 @@ export function freeSlotsForDay({
   durationMin,
   busy,
   now,
-}: FreeSlotsInput): TimeInterval[] {
+}: FreeSlotsInput): Slot[] {
   const nowMs = now.getTime();
 
   return sliceSlotsForDay({ date, durationMin }).filter(

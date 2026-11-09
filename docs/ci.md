@@ -19,8 +19,8 @@ the PR check pipeline.
 
 | Task        | What it proves                                                        |
 | ----------- | --------------------------------------------------------------------- |
-| `lint`      | oxlint (type-aware for the backend) passes for every package.         |
-| `typecheck` | `tsc` passes for backend, frontend (`tsc -b`) and the API client.     |
+| `lint`      | oxlint (type-aware for the backend) passes for every package, plus `e2e/`, `playwright.config.ts` and `scripts/`. |
+| `typecheck` | `tsc` passes for backend, frontend (`tsc -b`), the API client, and the golden-path files (`tsconfig.e2e.json`). |
 | `test`      | backend unit tests, backend e2e tests, then frontend component tests. |
 | `build`     | backend (`nest build`) and frontend (`vite build`) compile.           |
 | `check:sdk` | regenerating the SDK produces no diff (generated artifacts are fresh).|
@@ -55,9 +55,12 @@ mise run check          # everything above, exactly what CI runs
 Individual package commands remain available: `pnpm --filter backend test:e2e`,
 `pnpm --filter backend build`, `pnpm --filter frontend build`, etc.
 
-The Playwright golden path (`mise run e2e:golden`) is intentionally **not** part of
+The Playwright golden path (`mise run e2e:golden`) is intentionally **not executed** by
 `mise run check` or the CI workflow: it needs a browser, real backend/frontend servers and
-free ports 3000/5173. It is documented in the [README](../README.md#golden-path-playwright).
+free ports 3000/5173. Its TypeScript and scripts are still covered offline: `lint` runs
+oxlint over `e2e/`, `playwright.config.ts` and `scripts/`, and `typecheck` runs
+`tsc -p tsconfig.e2e.json`. It is documented in the
+[README](../README.md#golden-path-playwright).
 
 ## Required status check / branch protection
 

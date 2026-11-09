@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Booking, MeetingType, Slot } from 'api-client'
+import { AsyncSection } from '@/components/async-section'
 import { Button } from '@/components/ui/button'
 import {
   createBooking,
@@ -8,15 +9,15 @@ import {
   type ApiError,
   type ApiResult,
 } from '@/lib/api'
+import { fieldErrorId, inputClassName, splitValidationFieldErrors } from '@/lib/form'
+import type { LoadStatus } from '@/lib/load-status'
 import {
   formatOwnerDayHeading,
   formatOwnerTime,
   ownerDateOf,
-  ownerDays,
   OWNER_TIMEZONE,
 } from '@/lib/owner-days'
-
-type LoadStatus = 'idle' | 'loading' | 'error' | 'ready'
+import { useOwnerDays } from '@/lib/use-owner-days'
 
 interface GuestFormState {
   name: string
@@ -30,19 +31,15 @@ const emptyGuestForm: GuestFormState = {
   comment: '',
 }
 
+const GUEST_FORM_FIELDS = ['guestName', 'guestEmail', 'comment'] as const
+const FIELD_ERROR_PREFIX = 'booking-guest'
+
 const SLOT_TAKEN_MESSAGE =
   'That time was just booked by someone else. The available times have been updated — please pick another slot.'
 const MEETING_TYPE_GONE_MESSAGE =
   'This meeting type is no longer available. Please choose another one.'
 const GENERAL_BOOKING_ERROR =
   'Something went wrong while booking. Your details are still here — please try again.'
-
-const inputClassName =
-  'h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20'
-
-function fieldErrorId(field: string) {
-  return `booking-guest-${field}-error`
-}
 
 function BookingPage() {
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[]>([])
@@ -52,7 +49,7 @@ function BookingPage() {
     null,
   )
 
-  const [days] = useState(() => ownerDays())
+  const days = useOwnerDays()
   const [selectedType, setSelectedType] = useState<MeetingType | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [slots, setSlots] = useState<Slot[]>([])
@@ -71,22 +68,31 @@ function BookingPage() {
 
   const slotsRequest = useRef(0)
 
-  const handleResult = useCallback((result: ApiResult<MeetingType[]>) => {
-    if (result.error) {
-      setError(result.error)
-      setStatus('error')
-      return
-    }
+  const handleMeetingTypesResult = useCallback(
+    (result: ApiResult<MeetingType[]>) => {
+      if (result.error) {
+        setError(result.error)
+        setStatus('error')
+        return
+      }
 
-    setMeetingTypes(result.data)
-    setStatus('ready')
-  }, [])
+      setMeetingTypes(result.data)
+      setStatus('ready')
+    },
+    [],
+  )
+
+  const reloadMeetingTypes = useCallback(() => {
+    setStatus('loading')
+    setError(null)
+    void listMeetingTypes().then(handleMeetingTypesResult)
+  }, [handleMeetingTypesResult])
 
   useEffect(() => {
-    void listMeetingTypes().then(handleResult)
-  }, [handleResult])
+    void listMeetingTypes().then(handleMeetingTypesResult)
+  }, [handleMeetingTypesResult])
 
-  function resetStayOnMeetingTypes() {
+  const resetBookingDetails = useCallback(() => {
     slotsRequest.current += 1
     setSelectedDate(null)
     setSlots([])
@@ -99,41 +105,29 @@ function BookingPage() {
     setSubmitError(null)
     setIsSubmitting(false)
     setConfirmedBooking(null)
-  }
+  }, [])
 
   function retryMeetingTypes() {
-    setStatus('loading')
-    setError(null)
     setMeetingTypesNotice(null)
-    void listMeetingTypes().then(handleResult)
+    reloadMeetingTypes()
+  }
+
+  function restartBookingFlow(notice: string | null = null) {
+    resetBookingDetails()
+    setSelectedType(null)
+    setMeetingTypesNotice(notice)
+    reloadMeetingTypes()
   }
 
   function selectMeetingType(meetingType: MeetingType) {
-    resetStayOnMeetingTypes()
+    resetBookingDetails()
     setMeetingTypesNotice(null)
     setSelectedType(meetingType)
   }
 
   function goBackToMeetingTypes() {
-    resetStayOnMeetingTypes()
+    resetBookingDetails()
     setSelectedType(null)
-  }
-
-  function bookAnotherMeeting() {
-    resetStayOnMeetingTypes()
-    setSelectedType(null)
-    setStatus('loading')
-    setError(null)
-    void listMeetingTypes().then(handleResult)
-  }
-
-  function returnToMeetingTypesAfterMissingType() {
-    resetStayOnMeetingTypes()
-    setSelectedType(null)
-    setMeetingTypesNotice(MEETING_TYPE_GONE_MESSAGE)
-    setStatus('loading')
-    setError(null)
-    void listMeetingTypes().then(handleResult)
   }
 
   async function loadSlots(meetingType: MeetingType, date: string) {
@@ -149,6 +143,11 @@ function BookingPage() {
     }
 
     if (result.error) {
+      if (result.error.code === 'meeting_type_not_found') {
+        restartBookingFlow(MEETING_TYPE_GONE_MESSAGE)
+        return
+      }
+
       setSlotsError(result.error)
       setSlotsStatus('error')
       return
@@ -178,9 +177,18 @@ function BookingPage() {
     setSubmitError(null)
   }
 
+  /**
+   * A day that fell out of the refreshed horizon is no longer offered, even if
+   * it was selected before the owner-timezone date rolled over.
+   */
+  const activeDate =
+    selectedDate !== null && days.some((day) => day.date === selectedDate)
+      ? selectedDate
+      : null
+
   function retrySlots() {
-    if (selectedType !== null && selectedDate !== null) {
-      void loadSlots(selectedType, selectedDate)
+    if (selectedType !== null && activeDate !== null) {
+      void loadSlots(selectedType, activeDate)
     }
   }
 
@@ -189,7 +197,9 @@ function BookingPage() {
   }
 
   const selectedSlot =
-    slots.find((slot) => slot.startAt === selectedSlotStart) ?? null
+    activeDate === null
+      ? null
+      : (slots.find((slot) => slot.startAt === selectedSlotStart) ?? null)
   const selectedSlotRange =
     selectedSlot === null
       ? ''
@@ -198,7 +208,7 @@ function BookingPage() {
   async function handleBookingSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (selectedType === null || selectedSlot === null) {
+    if (selectedType === null || activeDate === null || selectedSlot === null) {
       return
     }
 
@@ -219,22 +229,12 @@ function BookingPage() {
 
     if (result.error) {
       if (result.error.code === 'validation_failed') {
-        const errors: Record<string, string> = {}
-        const otherMessages: string[] = []
+        const { fields, otherMessages } = splitValidationFieldErrors(
+          result.error,
+          GUEST_FORM_FIELDS,
+        )
 
-        for (const field of result.error.details?.fields ?? []) {
-          if (
-            field.field === 'guestName' ||
-            field.field === 'guestEmail' ||
-            field.field === 'comment'
-          ) {
-            errors[field.field] = field.message
-          } else {
-            otherMessages.push(field.message)
-          }
-        }
-
-        setFieldErrors(errors)
+        setFieldErrors(fields)
         if (otherMessages.length > 0) {
           setSubmitError(otherMessages.join(' '))
         }
@@ -246,12 +246,12 @@ function BookingPage() {
         setSelectedSlotStart(null)
         // Refresh the day so the guest can pick another time. The POST is
         // never repeated automatically.
-        void loadSlots(selectedType, selectedDate ?? ownerDateOf(selectedSlot.startAt))
+        void loadSlots(selectedType, activeDate)
         return
       }
 
       if (result.error.code === 'meeting_type_not_found') {
-        returnToMeetingTypesAfterMissingType()
+        restartBookingFlow(MEETING_TYPE_GONE_MESSAGE)
         return
       }
 
@@ -308,12 +308,6 @@ function BookingPage() {
             )}
           </dl>
         </article>
-
-        <div>
-          <Button type="button" variant="outline" onClick={bookAnotherMeeting}>
-            Book another meeting
-          </Button>
-        </div>
       </section>
     )
   }
@@ -356,35 +350,15 @@ function BookingPage() {
             </div>
           )}
 
-          {status === 'loading' && (
-            <p role="status" className="text-muted-foreground">
-              Loading meeting types...
-            </p>
-          )}
-
-          {status === 'error' && (
-            <div
-              role="alert"
-              className="flex flex-col items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4"
-            >
-              <p>Couldn't load meeting types. {error?.message}</p>
-              <Button type="button" variant="outline" onClick={retryMeetingTypes}>
-                Retry
-              </Button>
-            </div>
-          )}
-
-          {status === 'ready' && meetingTypes.length === 0 && (
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <h3 className="font-medium">No meeting types yet</h3>
-              <p className="text-muted-foreground">
-                The calendar owner hasn't published any meeting types yet. Check
-                back soon.
-              </p>
-            </div>
-          )}
-
-          {status === 'ready' && meetingTypes.length > 0 && (
+          <AsyncSection
+            status={status}
+            loadingMessage="Loading meeting types..."
+            errorMessage={`Couldn't load meeting types. ${error?.message ?? ''}`}
+            onRetry={retryMeetingTypes}
+            isEmpty={meetingTypes.length === 0}
+            emptyTitle="No meeting types yet"
+            emptyMessage="The calendar owner hasn't published any meeting types yet. Check back soon."
+          >
             <ul className="grid gap-4 sm:grid-cols-2">
               {meetingTypes.map((meetingType) => (
                 <li key={meetingType.id}>
@@ -413,7 +387,7 @@ function BookingPage() {
                 </li>
               ))}
             </ul>
-          )}
+          </AsyncSection>
         </>
       )}
 
@@ -465,7 +439,7 @@ function BookingPage() {
             </ul>
           </section>
 
-          {selectedDate !== null && (
+          {activeDate !== null && (
             <section
               aria-labelledby="available-times-heading"
               className="flex flex-col gap-3"
@@ -478,7 +452,7 @@ function BookingPage() {
                   Available times
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {formatOwnerDayHeading(selectedDate)} · {OWNER_TIMEZONE}
+                  {formatOwnerDayHeading(activeDate)} · {OWNER_TIMEZONE}
                 </p>
               </div>
 
@@ -491,49 +465,23 @@ function BookingPage() {
                 </div>
               )}
 
-              {slotsStatus === 'loading' && (
-                <p role="status" className="text-muted-foreground">
-                  Loading available slots...
-                </p>
-              )}
-
-              {slotsStatus === 'error' && slotsError && (
-                <div
-                  role="alert"
-                  className="flex flex-col items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4"
-                >
-                  {slotsError.code === 'date_out_of_range' ? (
-                    <p>
-                      This date is outside the booking horizon. Pick another
-                      day.
-                    </p>
-                  ) : (
-                    <>
-                      <p>
-                        Couldn't load available slots. {slotsError.message}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={retrySlots}
-                      >
-                        Retry
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {slotsStatus === 'ready' && slots.length === 0 && (
-                <div className="rounded-lg border border-dashed p-8 text-center">
-                  <h4 className="font-medium">No free slots on this day</h4>
-                  <p className="text-muted-foreground">
-                    Every time on this day is already booked. Pick another day.
-                  </p>
-                </div>
-              )}
-
-              {slotsStatus === 'ready' && slots.length > 0 && (
+              <AsyncSection
+                status={slotsStatus}
+                loadingMessage="Loading available slots..."
+                errorMessage={
+                  slotsError?.code === 'date_out_of_range'
+                    ? 'This date is outside the booking horizon. Pick another day.'
+                    : `Couldn't load available slots. ${slotsError?.message ?? ''}`
+                }
+                onRetry={
+                  slotsError?.code === 'date_out_of_range'
+                    ? undefined
+                    : retrySlots
+                }
+                isEmpty={slots.length === 0}
+                emptyTitle="No free slots on this day"
+                emptyMessage="Every time on this day is already booked. Pick another day."
+              >
                 <ul
                   aria-label="Available slots"
                   className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
@@ -551,7 +499,7 @@ function BookingPage() {
                     </li>
                   ))}
                 </ul>
-              )}
+              </AsyncSection>
             </section>
           )}
 
@@ -591,14 +539,14 @@ function BookingPage() {
                     aria-invalid={fieldErrors.guestName ? 'true' : undefined}
                     aria-describedby={
                       fieldErrors.guestName
-                        ? fieldErrorId('guestName')
+                        ? fieldErrorId(FIELD_ERROR_PREFIX, 'guestName')
                         : undefined
                     }
                     className={inputClassName}
                   />
                   {fieldErrors.guestName && (
                     <p
-                      id={fieldErrorId('guestName')}
+                      id={fieldErrorId(FIELD_ERROR_PREFIX, 'guestName')}
                       role="alert"
                       className="text-sm text-destructive"
                     >
@@ -625,14 +573,14 @@ function BookingPage() {
                     aria-invalid={fieldErrors.guestEmail ? 'true' : undefined}
                     aria-describedby={
                       fieldErrors.guestEmail
-                        ? fieldErrorId('guestEmail')
+                        ? fieldErrorId(FIELD_ERROR_PREFIX, 'guestEmail')
                         : undefined
                     }
                     className={inputClassName}
                   />
                   {fieldErrors.guestEmail && (
                     <p
-                      id={fieldErrorId('guestEmail')}
+                      id={fieldErrorId(FIELD_ERROR_PREFIX, 'guestEmail')}
                       role="alert"
                       className="text-sm text-destructive"
                     >
@@ -659,14 +607,14 @@ function BookingPage() {
                     aria-invalid={fieldErrors.comment ? 'true' : undefined}
                     aria-describedby={
                       fieldErrors.comment
-                        ? fieldErrorId('comment')
+                        ? fieldErrorId(FIELD_ERROR_PREFIX, 'comment')
                         : undefined
                     }
                     className={`${inputClassName} h-auto py-2`}
                   />
                   {fieldErrors.comment && (
                     <p
-                      id={fieldErrorId('comment')}
+                      id={fieldErrorId(FIELD_ERROR_PREFIX, 'comment')}
                       role="alert"
                       className="text-sm text-destructive"
                     >

@@ -83,6 +83,18 @@ model NotFoundError {
   message: string;
 }
 
+/**
+ * A framework-level client error that is neither field validation nor
+ * not-found (for example 405 Method Not Allowed). It keeps the real HTTP
+ * status code and never exposes internals. No business operation returns it
+ * directly, but the shared error envelope can.
+ */
+model RequestError {
+  statusCode: int32;
+  code: "request_error";
+  message: string;
+}
+
 model HealthCheckOk {
   @statusCode statusCode: 200;
   @body body: HealthStatus;

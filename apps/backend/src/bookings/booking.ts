@@ -18,11 +18,3 @@ export interface Booking {
 
 /** The booking columns as stored in SQLite, without the joined meeting type. */
 export type BookingRecord = Omit<Booking, 'meetingType'>;
-
-export interface CreateBookingInput {
-  meetingTypeId: number;
-  startAt: string;
-  guestName: string;
-  guestEmail: string;
-  comment: string | null;
-}

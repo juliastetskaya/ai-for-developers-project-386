@@ -13,7 +13,9 @@ function miseTask(name) {
   const start = lines.findIndex((line) => header.test(line));
   assert.notEqual(start, -1, `mise task "${name}" is missing`);
 
-  let end = lines.findIndex((line, index) => index > start && /^\[/.test(line));
+  let end = lines.findIndex(
+    (line, index) => index > start && line.startsWith('['),
+  );
   if (end === -1) end = lines.length;
   return lines.slice(start + 1, end).join('\n');
 }
@@ -65,4 +67,24 @@ test('CI workflow runs setup and the shared check gate on push and pull_request'
 test('CI workflow does not depend on repository secrets (fork-safe)', () => {
   const workflow = read('.github/workflows/check.yml');
   assert.doesNotMatch(workflow, /secrets\./);
+});
+
+test('lint and typecheck gates also cover the golden path and repo scripts', () => {
+  const scripts = JSON.parse(read('package.json')).scripts;
+
+  assert.match(scripts.lint ?? '', /pnpm lint:e2e/);
+  assert.match(scripts.typecheck ?? '', /pnpm typecheck:e2e/);
+  assert.match(scripts['lint:e2e'] ?? '', /oxlint/);
+  assert.match(scripts['lint:e2e'] ?? '', /e2e/);
+  assert.match(scripts['lint:e2e'] ?? '', /scripts/);
+  assert.match(scripts['typecheck:e2e'] ?? '', /tsconfig\.e2e\.json/);
+});
+
+test('release-please prefers a PAT and falls back to GITHUB_TOKEN', () => {
+  const workflow = read('.github/workflows/release-please.yml');
+
+  assert.match(
+    workflow,
+    /token:\s*\$\{\{\s*secrets\.RELEASE_PLEASE_TOKEN\s*\|\|\s*secrets\.GITHUB_TOKEN\s*\}\}/,
+  );
 });

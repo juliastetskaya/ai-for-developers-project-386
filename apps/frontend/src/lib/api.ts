@@ -65,76 +65,56 @@ export function normalizeApiError(error: unknown): ApiError {
   }
 }
 
-export async function listMeetingTypes(): Promise<ApiResult<MeetingType[]>> {
-  const result = await meetingTypesList()
-
-  if (result.error !== undefined) {
-    return { data: null, error: normalizeApiError(result.error) }
-  }
-
-  return { data: result.data ?? [], error: null }
+function networkError(): ApiError {
+  return { status: 0, code: 'network_error', message: FALLBACK_MESSAGE }
 }
 
-export async function createMeetingType(
-  input: CreateMeetingTypeRequest,
-): Promise<ApiResult<MeetingType>> {
-  const result = await meetingTypesCreate({ body: input })
-
+/**
+ * One unwrap for every SDK call: an error payload keeps its envelope, while a
+ * missing body (never expected from these endpoints) becomes a network error
+ * instead of being silently coerced to an empty list.
+ */
+function unwrapResult<T>(result: {
+  data?: T
+  error?: unknown
+}): ApiResult<T> {
   if (result.error !== undefined) {
     return { data: null, error: normalizeApiError(result.error) }
   }
 
   if (result.data === undefined) {
-    return {
-      data: null,
-      error: { status: 0, code: 'network_error', message: FALLBACK_MESSAGE },
-    }
+    return { data: null, error: networkError() }
   }
 
   return { data: result.data, error: null }
+}
+
+export async function listMeetingTypes(): Promise<ApiResult<MeetingType[]>> {
+  return unwrapResult(await meetingTypesList())
+}
+
+export async function createMeetingType(
+  input: CreateMeetingTypeRequest,
+): Promise<ApiResult<MeetingType>> {
+  return unwrapResult(await meetingTypesCreate({ body: input }))
 }
 
 export async function getAvailability(
   meetingTypeId: number,
   date: string,
 ): Promise<ApiResult<Slot[]>> {
-  const result = await availabilityList({
-    query: { meetingTypeId, date },
-  })
-
-  if (result.error !== undefined) {
-    return { data: null, error: normalizeApiError(result.error) }
-  }
-
-  return { data: result.data ?? [], error: null }
+  return unwrapResult(
+    await availabilityList({ query: { meetingTypeId, date } }),
+  )
 }
 
 export async function createBooking(
   input: CreateBookingRequest,
 ): Promise<ApiResult<Booking>> {
-  const result = await bookingsCreate({ body: input })
-
-  if (result.error !== undefined) {
-    return { data: null, error: normalizeApiError(result.error) }
-  }
-
-  if (result.data === undefined) {
-    return {
-      data: null,
-      error: { status: 0, code: 'network_error', message: FALLBACK_MESSAGE },
-    }
-  }
-
-  return { data: result.data, error: null }
+  return unwrapResult(await bookingsCreate({ body: input }))
 }
 
 /** Every booking that has not started yet, in the server's ascending order. */
 export async function listUpcomingBookings(): Promise<ApiResult<Booking[]>> {
-  const result = await bookingsList({ query: { scope: 'upcoming' } })
-
-  if (result.error !== undefined) {
-    return { data: null, error: normalizeApiError(result.error) }
-  }
-
-  return { data: result.data ?? [], error: null }
+  return unwrapResult(await bookingsList({ query: { scope: 'upcoming' } }))
 }

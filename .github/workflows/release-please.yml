@@ -16,5 +16,9 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v5
         with:
+          # A PAT-created Release PR triggers the required `check` workflow and
+          # is therefore mergeable under strict branch protection. Without the
+          # secret the workflow stays secret-free and falls back to GITHUB_TOKEN.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json

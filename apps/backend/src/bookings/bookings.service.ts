@@ -11,7 +11,14 @@ import {
   ValidationErrors,
 } from '../common/validation.js';
 import { MeetingTypesService } from '../meeting-types/meeting-types.service.js';
-import { dayWindow, ownerHorizon, OWNER_TIMEZONE } from '../slots/slots.js';
+import {
+  BOOKING_HORIZON_DAYS,
+  isValidSlotStart,
+  isWithinWorkingWindow,
+  ownerDateOf,
+  ownerHorizon,
+  WORKING_WINDOW_LABEL,
+} from '../slots/slots.js';
 import type { Booking } from './booking.js';
 import { BookingsRepository } from './bookings.repository.js';
 
@@ -26,6 +33,11 @@ const EXPLICIT_OFFSET_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
 const START_AT_FORMAT_MESSAGE =
   'Must be a valid ISO-8601 timestamp with an offset or Z.';
+const PAST_MESSAGE = 'Must be in the future.';
+const HORIZON_MESSAGE = `Must be within the next ${BOOKING_HORIZON_DAYS} days.`;
+const WORKING_WINDOW_MESSAGE =
+  `Must be within the working window (${WORKING_WINDOW_LABEL}).`;
+const SLOT_GRID_MESSAGE = 'Must align with a valid slot start.';
 
 export interface ParsedCreateBooking {
   meetingTypeId: number | null;
@@ -124,30 +136,22 @@ export function startAtViolation(
   now: Date,
 ): string | null {
   if (start.getTime() <= now.getTime()) {
-    return 'Must be in the future.';
+    return PAST_MESSAGE;
   }
 
-  const date = DateTime.fromJSDate(start, { zone: 'utc' })
-    .setZone(OWNER_TIMEZONE)
-    .toISODate();
-
+  const date = ownerDateOf(start);
   const { earliestDate, latestDate } = ownerHorizon(now);
   if (date === null || date < earliestDate || date > latestDate) {
-    return 'Must be within the next 14 days.';
+    return HORIZON_MESSAGE;
   }
 
-  const window = dayWindow(date);
-  const windowStart = new Date(window.startAt).getTime();
-  const windowEnd = new Date(window.endAt).getTime();
-  const startMs = start.getTime();
-  const endMs = startMs + durationMin * 60_000;
-
-  if (startMs < windowStart || endMs > windowEnd) {
-    return 'Must be within the working window (09:00–18:00 Europe/Moscow).';
+  const startAt = start.toISOString();
+  if (!isWithinWorkingWindow(date, startAt, durationMin)) {
+    return WORKING_WINDOW_MESSAGE;
   }
 
-  if ((startMs - windowStart) % (durationMin * 60_000) !== 0) {
-    return 'Must align with a valid slot start.';
+  if (!isValidSlotStart(date, durationMin, startAt)) {
+    return SLOT_GRID_MESSAGE;
   }
 
   return null;

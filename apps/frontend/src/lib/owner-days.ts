@@ -37,6 +37,19 @@ export function ownerDays(now: Date = new Date()): OwnerDay[] {
   })
 }
 
+/**
+ * Milliseconds from `now` until the next midnight in the owner timezone.
+ * Clamped to a positive value so a timer never spins at the exact boundary.
+ */
+export function msUntilNextOwnerMidnight(now: Date = new Date()): number {
+  const current = DateTime.fromJSDate(now, { zone: 'utc' }).setZone(
+    OWNER_TIMEZONE,
+  )
+  const nextMidnight = current.startOf('day').plus({ days: 1 })
+
+  return Math.max(1, nextMidnight.toMillis() - current.toMillis())
+}
+
 /** Formats a UTC ISO-8601 instant as a wall-clock time in the owner timezone. */
 export function formatOwnerTime(iso: string): string {
   return DateTime.fromISO(iso, { zone: 'utc' })

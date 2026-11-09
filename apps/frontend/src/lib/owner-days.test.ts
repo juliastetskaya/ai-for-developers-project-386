@@ -4,6 +4,7 @@ import {
   formatOwnerDayHeading,
   formatOwnerDateTime,
   formatOwnerTime,
+  msUntilNextOwnerMidnight,
   ownerDateOf,
   ownerDays,
 } from './owner-days'
@@ -33,6 +34,25 @@ describe('ownerDays', () => {
       label: 'Mon 9 Nov',
       isToday: true,
     })
+  })
+})
+
+describe('msUntilNextOwnerMidnight', () => {
+  it('returns the delay until the next Moscow day', () => {
+    // 23:00 in Moscow: one hour until midnight.
+    expect(
+      msUntilNextOwnerMidnight(new Date('2026-11-09T20:00:00.000Z')),
+    ).toBe(60 * 60 * 1000)
+    // 09:00 in Moscow: fifteen hours until the next midnight.
+    expect(
+      msUntilNextOwnerMidnight(new Date('2026-11-10T06:00:00.000Z')),
+    ).toBe(15 * 60 * 60 * 1000)
+  })
+
+  it('never returns zero at the exact owner midnight', () => {
+    expect(
+      msUntilNextOwnerMidnight(new Date('2026-11-09T21:00:00.000Z')),
+    ).toBeGreaterThan(0)
   })
 })
 
