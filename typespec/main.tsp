@@ -163,3 +163,55 @@ namespace MeetingTypes {
     @body body: CreateMeetingTypeRequest,
   ): CreateMeetingTypeOk | CreateMeetingTypeValidationError | CreateMeetingTypeInternalError;
 }
+
+// ---------------------------------------------------------------------------
+// Availability
+// ---------------------------------------------------------------------------
+
+model Slot {
+  /** UTC ISO-8601 start timestamp. */
+  startAt: utcDateTime;
+  /** UTC ISO-8601 end timestamp. */
+  endAt: utcDateTime;
+}
+
+model ListAvailabilityOk {
+  @statusCode statusCode: 200;
+  @body body: Slot[];
+}
+
+model ListAvailabilityValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model ListAvailabilityDateOutOfRange {
+  @statusCode statusCode: 400;
+  @body body: DateOutOfRangeError;
+}
+
+model ListAvailabilityMeetingTypeNotFound {
+  @statusCode statusCode: 404;
+  @body body: MeetingTypeNotFoundError;
+}
+
+model ListAvailabilityInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+@route("/availability")
+namespace Availability {
+  /** Free slots of one calendar day for a meeting type, ascending in ISO UTC. */
+  @get
+  op list(
+    @query meetingTypeId: int32,
+    /** Calendar date in the owner timezone, formatted as YYYY-MM-DD. */
+    @query date: string,
+  ):
+    | ListAvailabilityOk
+    | ListAvailabilityValidationError
+    | ListAvailabilityDateOutOfRange
+    | ListAvailabilityMeetingTypeNotFound
+    | ListAvailabilityInternalError;
+}
