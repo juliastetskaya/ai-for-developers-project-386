@@ -54,7 +54,15 @@ mise run setup   # установить зависимости и сгенери
 - `mise run lint` — линтинг всех пакетов
 - `mise run typecheck` — проверка типов во всех пакетах
 - `mise run test` — тесты backend и frontend
-- `mise run check` — все проверки разом: линтинг, типы, тесты и актуальность сгенерированного SDK (эта же команда запускается в GitHub Actions)
+- `mise run check` — все проверки разом: линтинг, типы, тесты, актуальность сгенерированного SDK и единая версия пакетов (эта же команда запускается в GitHub Actions)
+- `mise run check:versions` — проверить, что версии всех workspace-пакетов совпадают с корневой (входит в `check`)
+
+### Версионирование
+
+Версия у проекта одна на весь монорепозиторий. Источник истины — поле `version` в корневом
+`package.json`; `pnpm sync-versions` проставляет её во все workspace-пакеты, а
+`pnpm check-versions` (в составе `mise run check`) ловит расхождения. Подробности, правило
+синхронизации и требования к `release-please` — в [docs/versioning.md](docs/versioning.md).
 
 ### Фоновые серверы (демоны)
 
