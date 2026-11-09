@@ -58,4 +58,16 @@ export class MeetingTypesRepository {
 
     return toMeetingType(row);
   }
+
+  findById(id: number): MeetingType | null {
+    const row = this.database.db
+      .prepare(
+        `SELECT "id", "name", "description", "durationMin", "createdAt"
+         FROM "MeetingType"
+         WHERE "id" = ?`,
+      )
+      .get(id) as MeetingTypeRow | undefined;
+
+    return row === undefined ? null : toMeetingType(row);
+  }
 }

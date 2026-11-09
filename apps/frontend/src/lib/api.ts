@@ -1,10 +1,12 @@
 import {
+  availabilityList,
   client,
   meetingTypesCreate,
   meetingTypesList,
   type CreateMeetingTypeRequest,
   type FieldError,
   type MeetingType,
+  type Slot,
 } from 'api-client'
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
@@ -86,4 +88,19 @@ export async function createMeetingType(
   }
 
   return { data: result.data, error: null }
+}
+
+export async function getAvailability(
+  meetingTypeId: number,
+  date: string,
+): Promise<ApiResult<Slot[]>> {
+  const result = await availabilityList({
+    query: { meetingTypeId, date },
+  })
+
+  if (result.error !== undefined) {
+    return { data: null, error: normalizeApiError(result.error) }
+  }
+
+  return { data: result.data ?? [], error: null }
 }

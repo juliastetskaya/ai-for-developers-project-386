@@ -1,12 +1,18 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
+import { AvailabilityModule } from './availability/availability.module.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeetingTypesModule } from './meeting-types/meeting-types.module.js';
 
 @Module({
-  imports: [DatabaseModule, HealthModule, MeetingTypesModule],
+  imports: [
+    DatabaseModule,
+    HealthModule,
+    MeetingTypesModule,
+    AvailabilityModule,
+  ],
   providers: [
     {
       provide: APP_FILTER,

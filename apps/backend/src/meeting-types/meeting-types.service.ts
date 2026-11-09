@@ -80,6 +80,10 @@ export class MeetingTypesService {
     return this.repository.list();
   }
 
+  find(id: number): MeetingType | null {
+    return this.repository.findById(id);
+  }
+
   create(body: unknown): MeetingType {
     return this.repository.create(parseCreateMeetingType(body));
   }

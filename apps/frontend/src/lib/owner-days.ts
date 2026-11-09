@@ -1,0 +1,52 @@
+import { DateTime } from 'luxon'
+
+export const OWNER_TIMEZONE = 'Europe/Moscow'
+export const BOOKING_HORIZON_DAYS = 14
+
+const LOCALE = 'en'
+const DAY_LABEL_FORMAT = 'ccc d LLL'
+const DAY_HEADING_FORMAT = 'cccc, d LLLL yyyy'
+const TIME_FORMAT = 'HH:mm'
+
+export interface OwnerDay {
+  /** Calendar date in the owner timezone, formatted as YYYY-MM-DD. */
+  date: string
+  /** Short label such as "Tue 10 Nov". */
+  label: string
+  isToday: boolean
+}
+
+/**
+ * The 14-day booking horizon, starting today in the owner timezone. Only the
+ * dates are computed here; whether a day has free slots is decided by the API.
+ */
+export function ownerDays(now: Date = new Date()): OwnerDay[] {
+  const today = DateTime.fromJSDate(now, { zone: 'utc' })
+    .setZone(OWNER_TIMEZONE)
+    .startOf('day')
+
+  return Array.from({ length: BOOKING_HORIZON_DAYS }, (_, index) => {
+    const day = today.plus({ days: index })
+
+    return {
+      date: day.toISODate()!,
+      label: day.toFormat(DAY_LABEL_FORMAT, { locale: LOCALE }),
+      isToday: index === 0,
+    }
+  })
+}
+
+/** Formats a UTC ISO-8601 instant as a wall-clock time in the owner timezone. */
+export function formatOwnerTime(iso: string): string {
+  return DateTime.fromISO(iso, { zone: 'utc' })
+    .setZone(OWNER_TIMEZONE)
+    .toFormat(TIME_FORMAT)
+}
+
+/** A long, unambiguous label for a day such as "Tuesday, 10 November 2026". */
+export function formatOwnerDayHeading(date: string): string {
+  return DateTime.fromISO(date, { zone: OWNER_TIMEZONE }).toFormat(
+    DAY_HEADING_FORMAT,
+    { locale: LOCALE },
+  )
+}
