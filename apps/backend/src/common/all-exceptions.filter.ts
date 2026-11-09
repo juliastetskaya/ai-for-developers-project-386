@@ -15,10 +15,14 @@ interface ErrorEnvelope {
  * Formats every error that reaches Nest into the shared API envelope:
  * `{ statusCode, code, message, details? }`.
  *
- * Business errors carry their own code/details. Framework errors (unknown
- * routes, malformed JSON, other 4xx) are mapped to `not_found` or
- * `validation_failed`; anything else is logged and sanitized to 500
- * `internal_error` so internals never leak to the client.
+ * Business errors carry their own code/details. Framework errors keep their
+ * real status code and are mapped by kind:
+ * - 400/422 -> `validation_failed` (e.g. malformed JSON);
+ * - 404 -> `not_found` (unknown routes);
+ * - any other 4xx -> `request_error` (e.g. 405 Method Not Allowed).
+ *
+ * Anything else is logged and sanitized to 500 `internal_error` so internals
+ * never leak to the client.
  */
 @Catch()
 @Injectable()
@@ -72,14 +76,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
-    if (statusCode < 500) {
-      // Malformed JSON and other framework-level client errors carry no
+    if (statusCode === 400 || statusCode === 422) {
+      // Malformed JSON and other framework-level validation errors carry no
       // field-level information, so the envelope uses an empty field list.
       return {
         statusCode,
         code: ERROR_CODES.VALIDATION_FAILED,
         message: 'Request validation failed',
         details: { fields: [] },
+      };
+    }
+
+    if (statusCode < 500) {
+      // Other framework client errors (405, 406, 413, ...) are not field
+      // validation; keep the real status and use the transport-level code.
+      return {
+        statusCode,
+        code: ERROR_CODES.REQUEST_ERROR,
+        message: 'Request could not be processed',
       };
     }
 

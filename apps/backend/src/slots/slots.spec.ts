@@ -2,6 +2,8 @@ import {
   freeSlotsForDay,
   intervalsOverlap,
   isCalendarDate,
+  isValidSlotStart,
+  isWithinWorkingWindow,
   ownerHorizon,
   sliceSlotsForDay,
 } from './slots.js';
@@ -77,6 +79,43 @@ describe('sliceSlotsForDay', () => {
   it('yields no slots when the duration is longer than the working window', () => {
     expect(sliceSlotsForDay({ date: DAY, durationMin: 600 })).toEqual([]);
     expect(sliceSlotsForDay({ date: DAY, durationMin: 0 })).toEqual([]);
+  });
+});
+
+describe('isWithinWorkingWindow', () => {
+  it.each([
+    { start: '06:00', durationMin: 30, expected: true }, // 09:00-09:30
+    { start: '14:30', durationMin: 30, expected: true }, // 17:30-18:00
+    { start: '14:30', durationMin: 60, expected: false }, // 17:30-18:30
+    { start: '05:30', durationMin: 30, expected: false }, // 08:30-09:00
+    { start: '07:00', durationMin: 15, expected: true }, // 10:00-10:15
+  ])('checks $start for $durationMin minutes', ({ start, durationMin, expected }) => {
+    expect(
+      isWithinWorkingWindow(
+        DAY,
+        `${DAY}T${start}:00.000Z`,
+        durationMin,
+      ),
+    ).toBe(expected);
+  });
+});
+
+describe('isValidSlotStart', () => {
+  it.each([
+    { start: '06:00', expected: true }, // 09:00, first slot
+    { start: '06:30', expected: true }, // 09:30
+    { start: '14:30', expected: true }, // 17:30, last slot
+    { start: '06:15', expected: false }, // 09:15 is not on a 30-minute grid
+    { start: '14:45', expected: false }, // 17:45 would end after 18:00
+    { start: '05:30', expected: false }, // 08:30 is before the window
+  ])('checks $start for the 30-minute grid', ({ start, expected }) => {
+    expect(
+      isValidSlotStart(DAY, 30, `${DAY}T${start}:00.000Z`),
+    ).toBe(expected);
+  });
+
+  it('rejects an otherwise aligned start whose end crosses the window close', () => {
+    expect(isValidSlotStart(DAY, 60, `${DAY}T14:30:00.000Z`)).toBe(false);
   });
 });
 

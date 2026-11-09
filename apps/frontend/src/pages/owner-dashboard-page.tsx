@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Booking, MeetingType } from 'api-client'
+import { AsyncSection } from '@/components/async-section'
 import { Button } from '@/components/ui/button'
 import {
   createMeetingType,
@@ -8,9 +9,10 @@ import {
   type ApiError,
   type ApiResult,
 } from '@/lib/api'
+import { fieldErrorId, inputClassName, splitValidationFieldErrors } from '@/lib/form'
+import type { LoadStatus } from '@/lib/load-status'
+import { MEETING_TYPE_LIMITS } from '@/lib/meeting-type-limits'
 import { formatOwnerDateTime } from '@/lib/owner-days'
-
-type LoadStatus = 'loading' | 'error' | 'ready'
 
 interface CreateFormState {
   name: string
@@ -24,12 +26,8 @@ const emptyForm: CreateFormState = {
   durationMin: '',
 }
 
-const inputClassName =
-  'h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20'
-
-function fieldErrorId(field: string) {
-  return `meeting-type-${field}-error`
-}
+const FORM_FIELDS = ['name', 'description', 'durationMin'] as const
+const FIELD_ERROR_PREFIX = 'meeting-type'
 
 function OwnerDashboardPage() {
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[]>([])
@@ -111,11 +109,8 @@ function OwnerDashboardPage() {
       setIsSubmitting(false)
 
       if (result.error.code === 'validation_failed') {
-        const errors: Record<string, string> = {}
-        for (const field of result.error.details?.fields ?? []) {
-          errors[field.field] = field.message
-        }
-        setFieldErrors(errors)
+        const { fields } = splitValidationFieldErrors(result.error, FORM_FIELDS)
+        setFieldErrors(fields)
         return
       }
 
@@ -160,16 +155,19 @@ function OwnerDashboardPage() {
                 id="meeting-type-name"
                 name="name"
                 value={form.name}
+                maxLength={MEETING_TYPE_LIMITS.nameMaxLength}
                 onChange={(event) => updateField('name', event.target.value)}
                 aria-invalid={fieldErrors.name ? 'true' : undefined}
                 aria-describedby={
-                  fieldErrors.name ? fieldErrorId('name') : undefined
+                  fieldErrors.name
+                    ? fieldErrorId(FIELD_ERROR_PREFIX, 'name')
+                    : undefined
                 }
                 className={inputClassName}
               />
               {fieldErrors.name && (
                 <p
-                  id={fieldErrorId('name')}
+                  id={fieldErrorId(FIELD_ERROR_PREFIX, 'name')}
                   role="alert"
                   className="text-sm text-destructive"
                 >
@@ -189,6 +187,7 @@ function OwnerDashboardPage() {
                 id="meeting-type-description"
                 name="description"
                 value={form.description}
+                maxLength={MEETING_TYPE_LIMITS.descriptionMaxLength}
                 onChange={(event) =>
                   updateField('description', event.target.value)
                 }
@@ -196,14 +195,14 @@ function OwnerDashboardPage() {
                 aria-invalid={fieldErrors.description ? 'true' : undefined}
                 aria-describedby={
                   fieldErrors.description
-                    ? fieldErrorId('description')
+                    ? fieldErrorId(FIELD_ERROR_PREFIX, 'description')
                     : undefined
                 }
                 className={`${inputClassName} h-auto py-2`}
               />
               {fieldErrors.description && (
                 <p
-                  id={fieldErrorId('description')}
+                  id={fieldErrorId(FIELD_ERROR_PREFIX, 'description')}
                   role="alert"
                   className="text-sm text-destructive"
                 >
@@ -223,8 +222,8 @@ function OwnerDashboardPage() {
                 id="meeting-type-duration"
                 name="durationMin"
                 type="number"
-                min={5}
-                max={240}
+                min={MEETING_TYPE_LIMITS.durationMin.min}
+                max={MEETING_TYPE_LIMITS.durationMin.max}
                 value={form.durationMin}
                 onChange={(event) =>
                   updateField('durationMin', event.target.value)
@@ -232,14 +231,14 @@ function OwnerDashboardPage() {
                 aria-invalid={fieldErrors.durationMin ? 'true' : undefined}
                 aria-describedby={
                   fieldErrors.durationMin
-                    ? fieldErrorId('durationMin')
+                    ? fieldErrorId(FIELD_ERROR_PREFIX, 'durationMin')
                     : undefined
                 }
                 className={inputClassName}
               />
               {fieldErrors.durationMin && (
                 <p
-                  id={fieldErrorId('durationMin')}
+                  id={fieldErrorId(FIELD_ERROR_PREFIX, 'durationMin')}
                   role="alert"
                   className="text-sm text-destructive"
                 >
@@ -269,38 +268,15 @@ function OwnerDashboardPage() {
             Meeting types
           </h2>
 
-          {listStatus === 'loading' && (
-            <p role="status" className="text-muted-foreground">
-              Loading meeting types...
-            </p>
-          )}
-
-          {listStatus === 'error' && (
-            <div
-              role="alert"
-              className="flex flex-col items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4"
-            >
-              <p>Couldn't load meeting types. {listError?.message}</p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={retryMeetingTypes}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-
-          {listStatus === 'ready' && meetingTypes.length === 0 && (
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <h3 className="font-medium">No meeting types yet</h3>
-              <p className="text-muted-foreground">
-                Create your first meeting type to start accepting bookings.
-              </p>
-            </div>
-          )}
-
-          {listStatus === 'ready' && meetingTypes.length > 0 && (
+          <AsyncSection
+            status={listStatus}
+            loadingMessage="Loading meeting types..."
+            errorMessage={`Couldn't load meeting types. ${listError?.message ?? ''}`}
+            onRetry={retryMeetingTypes}
+            isEmpty={meetingTypes.length === 0}
+            emptyTitle="No meeting types yet"
+            emptyMessage="Create your first meeting type to start accepting bookings."
+          >
             <ul className="flex flex-col gap-3">
               {meetingTypes.map((meetingType) => (
                 <li key={meetingType.id}>
@@ -320,7 +296,7 @@ function OwnerDashboardPage() {
                 </li>
               ))}
             </ul>
-          )}
+          </AsyncSection>
         </section>
       </div>
 
@@ -332,34 +308,15 @@ function OwnerDashboardPage() {
           Upcoming bookings
         </h2>
 
-        {bookingsStatus === 'loading' && (
-          <p role="status" className="text-muted-foreground">
-            Loading bookings...
-          </p>
-        )}
-
-        {bookingsStatus === 'error' && (
-          <div
-            role="alert"
-            className="flex flex-col items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4"
-          >
-            <p>Couldn't load bookings. {bookingsError?.message}</p>
-            <Button type="button" variant="outline" onClick={retryBookings}>
-              Retry
-            </Button>
-          </div>
-        )}
-
-        {bookingsStatus === 'ready' && bookings.length === 0 && (
-          <div className="rounded-lg border border-dashed p-8 text-center">
-            <h3 className="font-medium">No upcoming bookings yet</h3>
-            <p className="text-muted-foreground">
-              Bookings made by guests will show up here.
-            </p>
-          </div>
-        )}
-
-        {bookingsStatus === 'ready' && bookings.length > 0 && (
+        <AsyncSection
+          status={bookingsStatus}
+          loadingMessage="Loading bookings..."
+          errorMessage={`Couldn't load bookings. ${bookingsError?.message ?? ''}`}
+          onRetry={retryBookings}
+          isEmpty={bookings.length === 0}
+          emptyTitle="No upcoming bookings yet"
+          emptyMessage="Bookings made by guests will show up here."
+        >
           <ul aria-label="Upcoming bookings" className="flex flex-col gap-3">
             {bookings.map((booking) => (
               <li key={booking.id}>
@@ -380,16 +337,11 @@ function OwnerDashboardPage() {
                   >
                     {booking.guestEmail}
                   </a>
-                  {booking.comment && (
-                    <p className="text-sm text-muted-foreground">
-                      {booking.comment}
-                    </p>
-                  )}
                 </article>
               </li>
             ))}
           </ul>
-        )}
+        </AsyncSection>
       </section>
     </section>
   )

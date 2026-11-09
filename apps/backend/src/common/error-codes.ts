@@ -5,6 +5,8 @@ export const ERROR_CODES = {
   DATE_OUT_OF_RANGE: 'date_out_of_range',
   INTERNAL_ERROR: 'internal_error',
   NOT_FOUND: 'not_found',
+  /** A framework-level client error that is neither validation nor not-found. */
+  REQUEST_ERROR: 'request_error',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

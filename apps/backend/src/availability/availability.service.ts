@@ -15,7 +15,7 @@ import {
   freeSlotsForDay,
   isCalendarDate,
   ownerHorizon,
-  type TimeInterval,
+  type Slot,
 } from '../slots/slots.js';
 import { AvailabilityRepository } from './availability.repository.js';
 
@@ -62,7 +62,7 @@ export class AvailabilityService {
   listFreeSlots(
     query: Record<string, unknown>,
     now: Date = new Date(),
-  ): TimeInterval[] {
+  ): Slot[] {
     const { meetingTypeId, date } = parseAvailabilityQuery(query);
 
     const meetingType = this.meetingTypes.find(meetingTypeId);

@@ -7,8 +7,10 @@
 ## Что настроено
 
 - `.github/workflows/release-please.yml` — workflow на push в `main` с правами
-  `contents: write` и `pull-requests: write` (плюс `issues: write` для меток). Использует
-  встроенный `GITHUB_TOKEN`, внешних секретов не требует.
+  `contents: write` и `pull-requests: write` (плюс `issues: write` для меток). Передаёт
+  `token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}`: при наличии PAT
+  Release PR создаётся от него, иначе workflow остаётся secret-free и использует
+  встроенный `GITHUB_TOKEN`.
 - `release-please-config.json` — один пакет `"."` с `release-type: node` и
   `include-component-in-tag: false`, поэтому теги имеют вид `vX.Y.Z`, а не `cal-clone-vX.Y.Z`.
   В `extra-files` перечислены все workspace-манифесты с JSON-обновлением `$.version`.
@@ -61,16 +63,27 @@ major. Если между релизами были только «нерели
 - Для нестандартного релиза используйте футер `Release-As: X.Y.Z` в коммите; это исключение,
   а не повседневный способ.
 
-## Ограничение GITHUB_TOKEN
+## Токен и защита ветки (обязательно для авто-мёржа Release PR)
 
-Workflow намеренно не использует секретов и работает через встроенный `GITHUB_TOKEN`.
-Из этого следуют две вещи:
+`main` защищена: required check `check` работает в strict-режиме, админы тоже не обходят
+защиту (см. [ci.md](ci.md)). GitHub **не запускает** другие workflow для событий, созданных
+встроенным `GITHUB_TOKEN` (защита от рекурсии). Поэтому Release PR, открытый от
+`GITHUB_TOKEN`, не получит required check `check` и не сможет быть смёржен.
 
-- В настройках репозитория (Settings → Actions → General) должен быть включён
-  «Allow GitHub Actions to create and approve pull requests», иначе Release PR не создастся.
-- GitHub не запускает другие workflow для событий, созданных `GITHUB_TOKEN` (защита от
-  рекурсии). Поэтому на Release PR не появится required check `check`, если на `main` включена
-  защита ветки. Если это блокирует мёрж, заведите fine-grained PAT (`RELEASE_PLEASE_TOKEN`),
-  передайте его в `token` action и ослабьте secret-free требование; либо разрешите мёрж
-  Release PR в настройках защиты. Сейчас workflow остаётся secret-free по требованию тикета.
+Чтобы Release PR проходил CI и мёржился, настройте репозиторный fine-grained PAT:
+
+1. Создайте PAT с правами `contents: write` и `pull-requests: write` (scope — только этот
+   репозиторий).
+2. Сохраните его в секрете `RELEASE_PLEASE_TOKEN`
+   (Settings → Secrets and variables → Actions → New repository secret).
+3. Workflow подхватит его автоматически через
+   `token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}`.
+
+Без PAT workflow продолжает работать без секретов и откроет Release PR от `GITHUB_TOKEN`,
+но такой PR не запустит `check`. В этом случае остаётся только один путь: владелец вручную
+добавляет bypass для Release PR в настройках branch protection. Это осознанный компромисс,
+а не рекомендуемый режим: секрет в `check.yml` не добавляется, fork-PR остаются безопасными.
+
+Дополнительно включите «Allow GitHub Actions to create and approve pull requests»
+(Settings → Actions → General), иначе Release PR не создастся даже с PAT.
 

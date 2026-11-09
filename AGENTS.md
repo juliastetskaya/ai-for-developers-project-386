@@ -50,7 +50,7 @@ Do not bypass hooks (`--no-verify`) — CI re-runs the same checks.
 
 - Linter is **oxlint**, not ESLint (backend uses `--type-aware` via `oxlint-tsgolint`).
 - Frontend `typecheck` is `tsc -b` (project references), not plain `tsc --noEmit`.
-- Business rules worth knowing before changing booking logic: slots are sliced from a fixed working-hours window; any time overlap with **any** booking (of any meeting type) makes a slot unavailable globally; no auth/timezones/cancellation by design (see README).
+- Business rules worth knowing before changing booking logic: slots are sliced from a fixed working-hours window; any time overlap with **any** booking (of any meeting type) makes a slot unavailable globally; no auth, cancellation, or per-user timezone selection by design — the owner timezone is a fixed constant (`Europe/Moscow`, see `docs/adr/0003-owner-timezone-and-booking-horizon.md` and README).
 
 ## Agent skills
 

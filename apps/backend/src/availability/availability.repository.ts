@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
-import type { TimeInterval } from '../slots/slots.js';
+import type { BusyInterval } from '../slots/slots.js';
 
 interface BookingIntervalRow {
   startAt: string;
@@ -16,7 +16,7 @@ interface BookingIntervalRow {
 export class AvailabilityRepository {
   constructor(private readonly database: DatabaseService) {}
 
-  findOverlapping(startAt: string, endAt: string): TimeInterval[] {
+  findOverlapping(startAt: string, endAt: string): BusyInterval[] {
     const rows = this.database.db
       .prepare(
         `SELECT "startAt", "endAt"

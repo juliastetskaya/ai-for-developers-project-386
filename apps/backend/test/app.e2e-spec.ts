@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, MethodNotAllowedException } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { createTestApp, type TestAppContext } from './test-app.js';
@@ -26,6 +26,11 @@ class ExplodingController {
   @Get('conflict')
   conflict(): never {
     throw slotUnavailable();
+  }
+
+  @Get('method-not-allowed')
+  methodNotAllowed(): never {
+    throw new MethodNotAllowedException();
   }
 }
 
@@ -89,6 +94,18 @@ describe('API foundation (e2e)', () => {
       code: 'validation_failed',
       message: 'Request validation failed',
       details: { fields: [] },
+    });
+  });
+
+  it('maps framework 4xx errors other than 400/404 to request_error', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/__test__/method-not-allowed')
+      .expect(405);
+
+    expect(response.body).toEqual({
+      statusCode: 405,
+      code: 'request_error',
+      message: 'Request could not be processed',
     });
   });
 

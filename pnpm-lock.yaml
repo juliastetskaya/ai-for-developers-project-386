@@ -11,6 +11,15 @@ importers:
       '@playwright/test':
         specifier: 1.65.0
         version: 1.65.0
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      oxlint:
+        specifier: ^1.89.0
+        version: 1.90.0(oxlint-tsgolint@7.0.2005)
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
 
   apps/backend:
     dependencies:

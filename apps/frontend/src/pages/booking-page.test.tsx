@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -287,6 +288,53 @@ describe('BookingPage', () => {
     )
   })
 
+  it('returns to the meeting-type list when availability says the type is gone', async () => {
+    await selectIntroCall()
+    mockedGetAvailability.mockResolvedValue({
+      data: null,
+      error: {
+        status: 404,
+        code: 'meeting_type_not_found',
+        message: 'Meeting type not found',
+      },
+    })
+
+    fireEvent.click(dayButtons()[0])
+
+    expect(
+      await screen.findByText(/is no longer available/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Choose a meeting type' }),
+    ).toBeInTheDocument()
+    expect(mockedListMeetingTypes).toHaveBeenCalledTimes(2)
+    expect(
+      screen.queryByRole('list', { name: 'Available slots' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('refreshes the day list when the owner date rolls over', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-11-09T20:00:00.000Z')) // 23:00 in Moscow
+
+    try {
+      await selectIntroCall()
+
+      expect(dayButtons()[0]).toHaveTextContent('Mon 9 Nov')
+
+      vi.setSystemTime(new Date('2026-11-10T13:00:00.000Z')) // 16:00 in Moscow
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'))
+      })
+
+      expect(dayButtons()).toHaveLength(14)
+      expect(dayButtons()[0]).toHaveTextContent('Tue 10 Nov')
+      expect(dayButtons().at(-1)).toHaveTextContent('Mon 23 Nov')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('lets the guest go back and choose another meeting type', async () => {
     await selectIntroCall()
 
@@ -349,6 +397,9 @@ describe('BookingPage', () => {
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
     expect(screen.getByText('ada@example.com')).toBeInTheDocument()
     expect(screen.getByText('Looking forward to it.')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Book another meeting' }),
+    ).not.toBeInTheDocument()
   })
 
   it('renders field-level errors returned by the API next to the fields', async () => {
