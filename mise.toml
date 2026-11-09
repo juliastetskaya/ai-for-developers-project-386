@@ -56,9 +56,13 @@ fi
 description = "Verify every workspace package uses the root package version"
 run = "pnpm test-versions && pnpm check-versions"
 
+[tasks."check:release-please"]
+description = "Verify the release-please config matches the single version and workspace manifests"
+run = "pnpm test-release-please && pnpm check-release-please"
+
 [tasks.check]
-description = "Run all checks: lint, typecheck, tests, SDK freshness, version sync"
-depends = ["lint", "typecheck", "test", "check:sdk", "check:versions"]
+description = "Run all checks: lint, typecheck, tests, SDK freshness, version sync, release-please config"
+depends = ["lint", "typecheck", "test", "check:sdk", "check:versions", "check:release-please"]
 
 [daemons.backend]
 run = "exec pnpm dev:backend"

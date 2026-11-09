@@ -56,6 +56,7 @@ mise run setup   # установить зависимости и сгенери
 - `mise run test` — тесты backend и frontend
 - `mise run check` — все проверки разом: линтинг, типы, тесты, актуальность сгенерированного SDK и единая версия пакетов (эта же команда запускается в GitHub Actions)
 - `mise run check:versions` — проверить, что версии всех workspace-пакетов совпадают с корневой (входит в `check`)
+- `mise run check:release-please` — проверить конфигурацию release-please: единый пакет, совпадение версии манифеста с корневой, покрытие всех workspace-пакетов в `extra-files` (входит в `check`)
 
 ### Версионирование
 
@@ -63,6 +64,14 @@ mise run setup   # установить зависимости и сгенери
 `package.json`; `pnpm sync-versions` проставляет её во все workspace-пакеты, а
 `pnpm check-versions` (в составе `mise run check`) ловит расхождения. Подробности, правило
 синхронизации и требования к `release-please` — в [docs/versioning.md](docs/versioning.md).
+
+### Релизы
+
+Релизы готовятся автоматически через release-please: на push в `main` он открывает Release PR
+с новой версией и CHANGELOG, а после мёржа создаёт GitHub Release и тег `vX.Y.Z`. Версию
+определяют Conventional Commits: `feat` — minor, `fix`/`perf`/`revert` — patch,
+`!`/`BREAKING CHANGE` — major; остальные типы релиз не создают. Полный флоу и таблица типов —
+в [docs/releases.md](docs/releases.md).
 
 ### Фоновые серверы (демоны)
 
