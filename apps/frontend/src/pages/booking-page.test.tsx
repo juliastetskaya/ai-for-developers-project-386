@@ -1,21 +1,30 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import type { MeetingType, Slot } from 'api-client'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
+import type { Booking, MeetingType, Slot } from 'api-client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  createBooking,
   getAvailability,
   listMeetingTypes,
   type ApiResult,
- } from '@/lib/api'
+} from '@/lib/api'
 import BookingPage from './booking-page'
 
 vi.mock('@/lib/api', () => ({
   listMeetingTypes: vi.fn(),
   createMeetingType: vi.fn(),
   getAvailability: vi.fn(),
+  createBooking: vi.fn(),
 }))
 
 const mockedListMeetingTypes = vi.mocked(listMeetingTypes)
 const mockedGetAvailability = vi.mocked(getAvailability)
+const mockedCreateBooking = vi.mocked(createBooking)
 
 const introCall: MeetingType = {
   id: 1,
@@ -44,6 +53,20 @@ const morningSlots: Slot[] = [
   },
 ]
 
+const onlyRemainingSlot: Slot[] = [morningSlots[1]]
+
+const createdBooking: Booking = {
+  id: 10,
+  meetingTypeId: introCall.id,
+  meetingType: introCall,
+  startAt: morningSlots[0].startAt,
+  endAt: morningSlots[0].endAt,
+  guestName: 'Ada Lovelace',
+  guestEmail: 'ada@example.com',
+  comment: 'Looking forward to it.',
+  createdAt: '2026-11-09T12:00:00.000Z',
+}
+
 function resolvedMeetingTypes(
   data: MeetingType[],
 ): ApiResult<MeetingType[]> {
@@ -69,6 +92,28 @@ async function selectIntroCall() {
 function dayButtons(): HTMLElement[] {
   const list = screen.getByRole('list', { name: 'Available days' })
   return within(list).getAllByRole('button')
+}
+
+async function selectFirstSlot() {
+  await selectIntroCall()
+  mockedGetAvailability.mockResolvedValue(resolvedSlots(morningSlots))
+
+  fireEvent.click(dayButtons()[0])
+  fireEvent.click(await screen.findByRole('button', { name: '09:00' }))
+
+  await screen.findByRole('heading', { name: 'Your details' })
+}
+
+function fillGuestDetails(overrides: Partial<Record<string, string>> = {}) {
+  fireEvent.change(screen.getByLabelText('Name'), {
+    target: { value: overrides.name ?? 'Ada Lovelace' },
+  })
+  fireEvent.change(screen.getByLabelText('Email'), {
+    target: { value: overrides.email ?? 'ada@example.com' },
+  })
+  fireEvent.change(screen.getByLabelText('Comment (optional)'), {
+    target: { value: overrides.comment ?? 'Looking forward to it.' },
+  })
 }
 
 beforeEach(() => {
@@ -266,5 +311,195 @@ describe('BookingPage', () => {
       'aria-pressed',
       'true',
     )
+  })
+
+  it('reveals the guest form after a slot is chosen', async () => {
+    await selectFirstSlot()
+
+    expect(screen.getByLabelText('Name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Email')).toBeInTheDocument()
+    expect(screen.getByLabelText('Comment (optional)')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Confirm booking' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('09:00–09:15 · Europe/Moscow')).toBeInTheDocument()
+  })
+
+  it('submits the booking and shows the confirmation details', async () => {
+    await selectFirstSlot()
+    mockedCreateBooking.mockResolvedValue({ data: createdBooking, error: null })
+
+    fillGuestDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Booking confirmed' }),
+    ).toBeInTheDocument()
+    expect(mockedCreateBooking).toHaveBeenCalledWith({
+      meetingTypeId: introCall.id,
+      startAt: morningSlots[0].startAt,
+      guestName: 'Ada Lovelace',
+      guestEmail: 'ada@example.com',
+      comment: 'Looking forward to it.',
+    })
+
+    expect(screen.getByText('Intro call')).toBeInTheDocument()
+    expect(screen.getByText('Tuesday, 10 November 2026')).toBeInTheDocument()
+    expect(screen.getByText('09:00–09:15 · Europe/Moscow')).toBeInTheDocument()
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
+    expect(screen.getByText('ada@example.com')).toBeInTheDocument()
+    expect(screen.getByText('Looking forward to it.')).toBeInTheDocument()
+  })
+
+  it('renders field-level errors returned by the API next to the fields', async () => {
+    await selectFirstSlot()
+    mockedCreateBooking.mockResolvedValue({
+      data: null,
+      error: {
+        status: 400,
+        code: 'validation_failed',
+        message: 'Request validation failed',
+        details: {
+          fields: [
+            { field: 'guestName', message: 'This field is required.' },
+            {
+              field: 'guestEmail',
+              message: 'Must be a valid email address.',
+            },
+          ],
+        },
+      },
+    })
+
+    fillGuestDetails({ name: '', email: 'not-an-email' })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+
+    expect(
+      await screen.findByText('This field is required.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Must be a valid email address.'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Email')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    )
+    expect(screen.getByLabelText('Name')).toHaveValue('')
+    expect(screen.getByLabelText('Email')).toHaveValue('not-an-email')
+    expect(mockedCreateBooking).toHaveBeenCalledTimes(1)
+  })
+
+  it('on 409 clears the slot, explains the conflict and reloads availability', async () => {
+    await selectFirstSlot()
+    mockedGetAvailability.mockResolvedValueOnce(
+      resolvedSlots(onlyRemainingSlot),
+    )
+    mockedCreateBooking.mockResolvedValue({
+      data: null,
+      error: {
+        status: 409,
+        code: 'slot_unavailable',
+        message: 'The selected slot is no longer available',
+      },
+    })
+
+    fillGuestDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+
+    expect(
+      await screen.findByText(/was just booked by someone else/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+    expect(mockedGetAvailability).toHaveBeenCalledTimes(2)
+    expect(mockedCreateBooking).toHaveBeenCalledTimes(1)
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: '09:00' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(
+      screen.getByRole('button', { name: '09:15' }),
+    ).toBeInTheDocument()
+  })
+
+  it('on 404 returns to the meeting-type list with a message', async () => {
+    await selectFirstSlot()
+    mockedListMeetingTypes.mockResolvedValue(
+      resolvedMeetingTypes([introCall, strategyCall]),
+    )
+    mockedCreateBooking.mockResolvedValue({
+      data: null,
+      error: {
+        status: 404,
+        code: 'meeting_type_not_found',
+        message: 'Meeting type not found',
+      },
+    })
+
+    fillGuestDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+
+    expect(
+      await screen.findByText(/is no longer available/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Choose a meeting type' }),
+    ).toBeInTheDocument()
+    expect(mockedListMeetingTypes).toHaveBeenCalledTimes(2)
+    expect(mockedCreateBooking).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a pending state while the booking request is in flight', async () => {
+    await selectFirstSlot()
+
+    let resolveBooking!: (result: ApiResult<Booking>) => void
+    mockedCreateBooking.mockReturnValue(
+      new Promise((resolve) => {
+        resolveBooking = resolve
+      }),
+    )
+
+    fillGuestDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+
+    expect(
+      screen.getByRole('button', { name: 'Booking...' }),
+    ).toBeDisabled()
+
+    resolveBooking({ data: createdBooking, error: null })
+
+    expect(
+      await screen.findByRole('heading', { name: 'Booking confirmed' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the entered data after a general error so the guest can retry', async () => {
+    await selectFirstSlot()
+    mockedCreateBooking.mockResolvedValue({
+      data: null,
+      error: {
+        status: 500,
+        code: 'internal_error',
+        message: 'Internal server error',
+      },
+    })
+
+    fillGuestDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+
+    expect(
+      await screen.findByText(/Something went wrong while booking/i),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Ada Lovelace')
+    expect(screen.getByLabelText('Email')).toHaveValue('ada@example.com')
+    expect(screen.getByLabelText('Comment (optional)')).toHaveValue(
+      'Looking forward to it.',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Confirm booking' }),
+    ).toBeEnabled()
+    expect(mockedCreateBooking).toHaveBeenCalledTimes(1)
   })
 })

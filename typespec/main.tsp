@@ -165,6 +165,81 @@ namespace MeetingTypes {
 }
 
 // ---------------------------------------------------------------------------
+// Bookings
+// ---------------------------------------------------------------------------
+
+model Booking {
+  /** Unique identifier. */
+  id: int32;
+  meetingTypeId: int32;
+  /** The meeting type this booking belongs to. */
+  meetingType: MeetingType;
+  /** UTC ISO-8601 start timestamp. */
+  startAt: utcDateTime;
+  /** UTC ISO-8601 end timestamp, computed as startAt + durationMin. */
+  endAt: utcDateTime;
+  /** 1..100 characters, trimmed before saving. */
+  guestName: string;
+  /** Valid email address, at most 320 characters. */
+  guestEmail: string;
+  /** Optional, at most 2000 characters. */
+  comment: string | null;
+  /** UTC ISO-8601 creation timestamp. */
+  createdAt: utcDateTime;
+}
+
+model CreateBookingRequest {
+  meetingTypeId: int32;
+  /** ISO-8601 instant with an explicit offset or Z. */
+  startAt: utcDateTime;
+  /** 1..100 characters, trimmed before saving. */
+  guestName: string;
+  /** Valid email address, at most 320 characters. */
+  guestEmail: string;
+  /** Optional, at most 2000 characters. */
+  comment?: string;
+}
+
+model CreateBookingOk {
+  @statusCode statusCode: 201;
+  @body body: Booking;
+}
+
+model CreateBookingValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model CreateBookingMeetingTypeNotFound {
+  @statusCode statusCode: 404;
+  @body body: MeetingTypeNotFoundError;
+}
+
+model CreateBookingSlotUnavailable {
+  @statusCode statusCode: 409;
+  @body body: SlotUnavailableError;
+}
+
+model CreateBookingInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+@route("/bookings")
+namespace Bookings {
+  /** Create a booking atomically; overlapping intervals are rejected with 409. */
+  @post
+  op create(
+    @body body: CreateBookingRequest,
+  ):
+    | CreateBookingOk
+    | CreateBookingValidationError
+    | CreateBookingMeetingTypeNotFound
+    | CreateBookingSlotUnavailable
+    | CreateBookingInternalError;
+}
+
+// ---------------------------------------------------------------------------
 // Availability
 // ---------------------------------------------------------------------------
 
