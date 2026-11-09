@@ -21,7 +21,8 @@ description = "Run the frontend in development mode"
 run = "pnpm dev:frontend"
 
 [tasks.build]
-description = "Build the backend and frontend"
+description = "Build the backend and frontend after typecheck"
+depends = ["typecheck"]
 run = "pnpm build:backend && pnpm build:frontend"
 
 [tasks.lint]
@@ -57,13 +58,17 @@ if [ -d "$TMP_DIR/client-before" ] && ! diff -r "$TMP_DIR/client-before" "$SDK_D
 fi
 """
 
+[tasks."check:versions"]
+description = "Verify every workspace package uses the root package version"
+run = "pnpm test-versions && pnpm check-versions"
+
 [tasks."check:ci"]
 description = "Validate CI config and workflow files"
 run = "node --test scripts/ci-config.test.mjs && actionlint"
 
 [tasks.check]
-description = "Run all checks: lint, typecheck, tests (unit + e2e), build, SDK freshness, CI config"
-depends = ["lint", "typecheck", "test", "build", "check:sdk", "check:ci"]
+description = "Run all checks: lint, typecheck, tests (unit + e2e), build, SDK freshness, version sync, CI config"
+depends = ["lint", "typecheck", "test", "build", "check:sdk", "check:versions", "check:ci"]
 
 [daemons.backend]
 run = "exec pnpm dev:backend"

@@ -36,6 +36,10 @@ test('mise test includes backend e2e tests', () => {
   assert.match(miseTask('test'), /test:e2e/);
 });
 
+test('build waits for typecheck so two tsc processes do not write the same build info', () => {
+  assert.ok(miseDepends('build').includes('typecheck'));
+});
+
 test('root scripts expose an independent backend e2e command', () => {
   const scripts = JSON.parse(read('package.json')).scripts;
   assert.match(scripts['test:e2e'] ?? '', /--filter backend test:e2e/);

@@ -22,6 +22,7 @@ edited.
 | `test`      | backend unit tests, backend e2e tests, then frontend component tests. |
 | `build`     | backend (`nest build`) and frontend (`vite build`) compile.           |
 | `check:sdk` | regenerating the SDK produces no diff (generated artifacts are fresh).|
+| `check:versions` | every workspace package uses the root `package.json` version.       |
 | `check:ci`  | CI config invariants (`scripts/ci-config.test.mjs`) + `actionlint`.   |
 
 Each task exits non-zero on failure, `mise` propagates a failed dependency, and the
@@ -42,6 +43,7 @@ mise run test           # backend unit + backend e2e + frontend
 mise run test:e2e       # backend e2e only (independent)
 mise run build          # backend build + frontend build
 mise run check:sdk      # generated SDK freshness
+mise run check:versions # single-version drift across workspace packages
 mise run check:ci       # workflow/config validation
 mise run check          # everything above, exactly what CI runs
 ```

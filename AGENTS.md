@@ -19,7 +19,7 @@ All tools (Node 22, pnpm 10, hk, pitchfork) are pinned in `mise.toml`. Install v
 
 - `mise run dev:backend` / `mise run dev:frontend` — dev servers (ports 3000 / 5173)
 - `mise daemons start` — both dev servers as background daemons (pitchfork); also `ls` / `logs` / `stop`
-- `mise run check` — the full gate: lint + typecheck + tests (unit + e2e) + build + SDK freshness + CI config validation. **This is what CI runs; make it pass before finishing any change.**
+- `mise run check` — the full gate: lint + typecheck + tests (unit + e2e) + build + SDK freshness + single-version drift + CI config validation. **This is what CI runs; make it pass before finishing any change.**
 - `mise run build` / `mise run test:e2e` — build both apps / run backend e2e tests independently.
 - `pnpm generate:api` — recompile TypeSpec and regenerate the SDK. Required after touching `typespec/`; `mise run check` fails with a diff if the generated client is stale.
 

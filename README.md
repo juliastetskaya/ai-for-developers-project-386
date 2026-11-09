@@ -55,8 +55,15 @@ mise run setup   # установить зависимости и сгенери
 - `mise run typecheck` — проверка типов во всех пакетах
 - `mise run test` — unit-тесты backend, e2e-тесты backend и тесты frontend
 - `mise run test:e2e` — только e2e-тесты backend
-- `mise run build` — сборка backend и frontend
-- `mise run check` — все проверки разом: линтинг, типы, тесты (unit + e2e), сборка, актуальность сгенерированного SDK и валидация CI (эта же команда запускается в GitHub Actions, см. [docs/ci.md](docs/ci.md))
+- `mise run check` — все проверки разом: линтинг, типы, тесты (unit + e2e), сборка, актуальность сгенерированного SDK, единая версия пакетов и валидация CI (эта же команда запускается в GitHub Actions, см. [docs/ci.md](docs/ci.md))
+- `mise run check:versions` — проверить, что версии всех workspace-пакетов совпадают с корневой (входит в `check`)
+
+### Версионирование
+
+Версия у проекта одна на весь монорепозиторий. Источник истины — поле `version` в корневом
+`package.json`; `pnpm sync-versions` проставляет её во все workspace-пакеты, а
+`pnpm check-versions` (в составе `mise run check`) ловит расхождения. Подробности, правило
+синхронизации и требования к `release-please` — в [docs/versioning.md](docs/versioning.md).
 
 ### Фоновые серверы (демоны)
 
