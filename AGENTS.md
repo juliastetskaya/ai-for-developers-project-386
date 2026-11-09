@@ -34,7 +34,7 @@ Git hooks are managed by [hk](https://hk.jdx.dev/) (`hk.pkl`):
 
 - `pre-commit` — lint
 - `pre-push` — full `mise run check`
-- `commit-msg` — **Conventional Commits enforced**: messages must match `type(optional-scope): description`, e.g. `feat: add booking endpoint`, `fix(slots): exclude occupied intervals`. Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Non-conforming messages are rejected.
+- `commit-msg` — **Conventional Commits enforced**: messages must match `type(optional-scope): description`, e.g. `feat: add booking endpoint`, `fix(slots): exclude occupied intervals`. Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Non-conforming messages are rejected. The implementation commit references the ticket it closes, for example: feat: booking an available slot (#12).
 
 Do not bypass hooks (`--no-verify`) — CI re-runs the same checks.
 
