@@ -99,3 +99,67 @@ namespace Health {
   @get
   op check(): HealthCheckOk | HealthCheckInternalError;
 }
+
+// ---------------------------------------------------------------------------
+// Meeting Types
+// ---------------------------------------------------------------------------
+
+model MeetingType {
+  /** Unique identifier. */
+  id: int32;
+  /** 1..100 characters, trimmed before saving. */
+  name: string;
+  /** Optional, at most 500 characters. */
+  description: string | null;
+  /** Duration in minutes, 5..240. */
+  durationMin: int32;
+  /** UTC ISO-8601 creation timestamp. */
+  createdAt: utcDateTime;
+}
+
+model CreateMeetingTypeRequest {
+  /** 1..100 characters, trimmed before saving. */
+  name: string;
+  /** Optional, at most 500 characters. */
+  description?: string;
+  /** Duration in minutes, 5..240. */
+  durationMin: int32;
+}
+
+model ListMeetingTypesOk {
+  @statusCode statusCode: 200;
+  @body body: MeetingType[];
+}
+
+model ListMeetingTypesInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+model CreateMeetingTypeOk {
+  @statusCode statusCode: 201;
+  @body body: MeetingType;
+}
+
+model CreateMeetingTypeValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model CreateMeetingTypeInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+@route("/meeting-types")
+namespace MeetingTypes {
+  /** List every meeting type. Public. */
+  @get
+  op list(): ListMeetingTypesOk | ListMeetingTypesInternalError;
+
+  /** Create a meeting type. */
+  @post
+  op create(
+    @body body: CreateMeetingTypeRequest,
+  ): CreateMeetingTypeOk | CreateMeetingTypeValidationError | CreateMeetingTypeInternalError;
+}

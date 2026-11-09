@@ -2,6 +2,11 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import App from './App'
 
+vi.mock('@/lib/api', () => ({
+  listMeetingTypes: vi.fn().mockResolvedValue({ data: [], error: null }),
+  createMeetingType: vi.fn(),
+}))
+
 function renderAt(route: string) {
   render(
     <MemoryRouter initialEntries={[route]}>
