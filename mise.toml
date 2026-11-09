@@ -41,6 +41,10 @@ run = "pnpm test:backend && pnpm test:e2e && pnpm test:frontend"
 description = "Run backend e2e tests"
 run = "pnpm test:e2e"
 
+[tasks."e2e:golden"]
+description = "Run the Playwright golden path against the real backend and frontend (not part of `check`)"
+run = "pnpm test:golden-path"
+
 [tasks."check:sdk"]
 description = "Verify the generated API SDK is up to date"
 run = """
