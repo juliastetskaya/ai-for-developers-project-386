@@ -7,7 +7,7 @@ import {
   within,
 } from '@testing-library/react'
 import type { Booking, MeetingType, Slot } from 'api-client'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createBooking,
   getAvailability,
@@ -116,6 +116,12 @@ function fillGuestDetails(overrides: Partial<Record<string, string>> = {}) {
     target: { value: overrides.comment ?? 'Looking forward to it.' },
   })
 }
+
+const scrollIntoView = vi.fn()
+
+beforeAll(() => {
+  Element.prototype.scrollIntoView = scrollIntoView
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -380,6 +386,19 @@ describe('BookingPage', () => {
       screen.getByRole('button', { name: 'Confirm booking' }),
     ).toBeInTheDocument()
     expect(screen.getByText('09:00–09:15 · Europe/Moscow')).toBeInTheDocument()
+  })
+
+  it('scrolls to the guest form once a slot is chosen', async () => {
+    await selectIntroCall()
+    mockedGetAvailability.mockResolvedValue(resolvedSlots(morningSlots))
+
+    fireEvent.click(dayButtons()[0])
+    await screen.findByRole('button', { name: '09:00' })
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '09:00' }))
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1))
   })
 
   it('submits the booking and shows the confirmation details', async () => {

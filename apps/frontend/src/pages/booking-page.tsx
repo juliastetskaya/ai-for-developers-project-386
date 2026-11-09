@@ -206,6 +206,19 @@ function BookingPage() {
       ? ''
       : `${formatOwnerTime(selectedSlot.startAt)}–${formatOwnerTime(selectedSlot.endAt)} · ${OWNER_TIMEZONE}`
 
+  const guestDetailsRef = useRef<HTMLElement | null>(null)
+
+  // Selecting a slot reveals the guest form below the calendar. Bring it into
+  // view so a long list of available times never hides the next step.
+  useEffect(() => {
+    if (selectedSlotStart !== null) {
+      guestDetailsRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    }
+  }, [selectedSlotStart])
+
   async function handleBookingSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -312,8 +325,7 @@ function BookingPage() {
 
         <Button
           type="button"
-          variant="outline"
-          className="self-start"
+          className="h-11 w-full px-6 text-base"
           onClick={() => restartBookingFlow()}
         >
           Book another meeting
@@ -518,8 +530,9 @@ function BookingPage() {
 
           {selectedSlot !== null && (
             <section
+              ref={guestDetailsRef}
               aria-labelledby="guest-details-heading"
-              className="flex flex-col gap-4 rounded-lg border bg-card p-6"
+              className="flex scroll-mt-6 flex-col gap-4 rounded-lg border bg-card p-6"
             >
               <div className="flex flex-col gap-1">
                 <h3 id="guest-details-heading" className="text-lg font-medium">
