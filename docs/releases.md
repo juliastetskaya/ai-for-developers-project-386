@@ -60,3 +60,17 @@ major. Если между релизами были только «нерели
 - `CHANGELOG.md` генерируется release-please — не редактируйте его вручную.
 - Для нестандартного релиза используйте футер `Release-As: X.Y.Z` в коммите; это исключение,
   а не повседневный способ.
+
+## Ограничение GITHUB_TOKEN
+
+Workflow намеренно не использует секретов и работает через встроенный `GITHUB_TOKEN`.
+Из этого следуют две вещи:
+
+- В настройках репозитория (Settings → Actions → General) должен быть включён
+  «Allow GitHub Actions to create and approve pull requests», иначе Release PR не создастся.
+- GitHub не запускает другие workflow для событий, созданных `GITHUB_TOKEN` (защита от
+  рекурсии). Поэтому на Release PR не появится required check `check`, если на `main` включена
+  защита ветки. Если это блокирует мёрж, заведите fine-grained PAT (`RELEASE_PLEASE_TOKEN`),
+  передайте его в `token` action и ослабьте secret-free требование; либо разрешите мёрж
+  Release PR в настройках защиты. Сейчас workflow остаётся secret-free по требованию тикета.
+
