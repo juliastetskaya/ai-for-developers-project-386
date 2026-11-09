@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import type { MeetingType } from 'api-client'
+import type { Booking, MeetingType } from 'api-client'
 import { Button } from '@/components/ui/button'
 import {
   createMeetingType,
   listMeetingTypes,
+  listUpcomingBookings,
   type ApiError,
   type ApiResult,
 } from '@/lib/api'
+import { formatOwnerDateTime } from '@/lib/owner-days'
 
 type LoadStatus = 'loading' | 'error' | 'ready'
 
@@ -34,6 +36,10 @@ function OwnerDashboardPage() {
   const [listStatus, setListStatus] = useState<LoadStatus>('loading')
   const [listError, setListError] = useState<ApiError | null>(null)
 
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookingsStatus, setBookingsStatus] = useState<LoadStatus>('loading')
+  const [bookingsError, setBookingsError] = useState<ApiError | null>(null)
+
   const [form, setForm] = useState<CreateFormState>(emptyForm)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -54,10 +60,31 @@ function OwnerDashboardPage() {
     void listMeetingTypes().then(handleResult)
   }, [handleResult])
 
+  const handleBookingsResult = useCallback((result: ApiResult<Booking[]>) => {
+    if (result.error) {
+      setBookingsError(result.error)
+      setBookingsStatus('error')
+      return
+    }
+
+    setBookings(result.data)
+    setBookingsStatus('ready')
+  }, [])
+
+  useEffect(() => {
+    void listUpcomingBookings().then(handleBookingsResult)
+  }, [handleBookingsResult])
+
   function retryMeetingTypes() {
     setListStatus('loading')
     setListError(null)
     void listMeetingTypes().then(handleResult)
+  }
+
+  function retryBookings() {
+    setBookingsStatus('loading')
+    setBookingsError(null)
+    void listUpcomingBookings().then(handleBookingsResult)
   }
 
   function updateField(field: keyof CreateFormState, value: string) {
@@ -296,6 +323,74 @@ function OwnerDashboardPage() {
           )}
         </section>
       </div>
+
+      <section
+        aria-labelledby="upcoming-bookings-heading"
+        className="flex flex-col gap-4"
+      >
+        <h2 id="upcoming-bookings-heading" className="text-xl font-semibold">
+          Upcoming bookings
+        </h2>
+
+        {bookingsStatus === 'loading' && (
+          <p role="status" className="text-muted-foreground">
+            Loading bookings...
+          </p>
+        )}
+
+        {bookingsStatus === 'error' && (
+          <div
+            role="alert"
+            className="flex flex-col items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4"
+          >
+            <p>Couldn't load bookings. {bookingsError?.message}</p>
+            <Button type="button" variant="outline" onClick={retryBookings}>
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {bookingsStatus === 'ready' && bookings.length === 0 && (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <h3 className="font-medium">No upcoming bookings yet</h3>
+            <p className="text-muted-foreground">
+              Bookings made by guests will show up here.
+            </p>
+          </div>
+        )}
+
+        {bookingsStatus === 'ready' && bookings.length > 0 && (
+          <ul aria-label="Upcoming bookings" className="flex flex-col gap-3">
+            {bookings.map((booking) => (
+              <li key={booking.id}>
+                <article className="flex flex-col gap-1 rounded-lg border p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="font-medium">{booking.meetingType.name}</h3>
+                    <time
+                      dateTime={booking.startAt}
+                      className="text-sm text-muted-foreground whitespace-nowrap"
+                    >
+                      {formatOwnerDateTime(booking.startAt)}
+                    </time>
+                  </div>
+                  <p className="text-sm">{booking.guestName}</p>
+                  <a
+                    href={`mailto:${booking.guestEmail}`}
+                    className="text-sm text-muted-foreground"
+                  >
+                    {booking.guestEmail}
+                  </a>
+                  {booking.comment && (
+                    <p className="text-sm text-muted-foreground">
+                      {booking.comment}
+                    </p>
+                  )}
+                </article>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </section>
   )
 }

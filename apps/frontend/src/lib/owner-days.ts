@@ -6,6 +6,7 @@ export const BOOKING_HORIZON_DAYS = 14
 const LOCALE = 'en'
 const DAY_LABEL_FORMAT = 'ccc d LLL'
 const DAY_HEADING_FORMAT = 'cccc, d LLLL yyyy'
+const DATE_TIME_FORMAT = 'ccc d LLL yyyy, HH:mm'
 const TIME_FORMAT = 'HH:mm'
 
 export interface OwnerDay {
@@ -41,6 +42,13 @@ export function formatOwnerTime(iso: string): string {
   return DateTime.fromISO(iso, { zone: 'utc' })
     .setZone(OWNER_TIMEZONE)
     .toFormat(TIME_FORMAT)
+}
+
+/** Formats a UTC ISO-8601 instant as a date and time in the owner timezone. */
+export function formatOwnerDateTime(iso: string): string {
+  return DateTime.fromISO(iso, { zone: 'utc' })
+    .setZone(OWNER_TIMEZONE)
+    .toFormat(DATE_TIME_FORMAT, { locale: LOCALE })
 }
 
 /** A long, unambiguous label for a day such as "Tuesday, 10 November 2026". */

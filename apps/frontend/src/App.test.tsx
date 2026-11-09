@@ -5,6 +5,7 @@ import App from './App'
 vi.mock('@/lib/api', () => ({
   listMeetingTypes: vi.fn().mockResolvedValue({ data: [], error: null }),
   createMeetingType: vi.fn(),
+  listUpcomingBookings: vi.fn().mockResolvedValue({ data: [], error: null }),
 }))
 
 function renderAt(route: string) {

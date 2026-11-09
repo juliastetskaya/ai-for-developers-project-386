@@ -225,8 +225,33 @@ model CreateBookingInternalError {
   @body body: InternalError;
 }
 
+model ListBookingsOk {
+  @statusCode statusCode: 200;
+  @body body: Booking[];
+}
+
+model ListBookingsValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model ListBookingsInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
 @route("/bookings")
 namespace Bookings {
+  /**
+   * List bookings in the requested scope. `upcoming` returns every booking whose
+   * start is at or after now, ascending by start, with nested meeting types.
+   */
+  @get
+  op list(
+    /** Only `upcoming` is supported. */
+    @query scope: string,
+  ): ListBookingsOk | ListBookingsValidationError | ListBookingsInternalError;
+
   /** Create a booking atomically; overlapping intervals are rejected with 409. */
   @post
   op create(
