@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ApiError, slotUnavailable } from '../common/api-error.js';
 import { DatabaseService } from '../database/database.service.js';
-import type { BookingRecord } from './booking.js';
+import type { Booking, BookingRecord } from './booking.js';
 
 export interface PersistBookingInput {
   meetingTypeId: number;
@@ -10,6 +10,33 @@ export interface PersistBookingInput {
   guestName: string;
   guestEmail: string;
   comment: string | null;
+}
+
+interface BookingWithMeetingTypeRow extends BookingRecord {
+  meetingTypeName: string;
+  meetingTypeDescription: string | null;
+  meetingTypeDurationMin: number;
+  meetingTypeCreatedAt: string;
+}
+
+function toBooking(row: BookingWithMeetingTypeRow): Booking {
+  return {
+    id: row.id,
+    meetingTypeId: row.meetingTypeId,
+    meetingType: {
+      id: row.meetingTypeId,
+      name: row.meetingTypeName,
+      description: row.meetingTypeDescription,
+      durationMin: row.meetingTypeDurationMin,
+      createdAt: row.meetingTypeCreatedAt,
+    },
+    startAt: row.startAt,
+    endAt: row.endAt,
+    guestName: row.guestName,
+    guestEmail: row.guestEmail,
+    comment: row.comment,
+    createdAt: row.createdAt,
+  };
 }
 
 /**
@@ -27,6 +54,30 @@ export class BookingsRepository {
   private readonly logger = new Logger(BookingsRepository.name);
 
   constructor(private readonly database: DatabaseService) {}
+
+  /**
+   * Bookings starting at or after `now`, ascending by start. Both stored
+   * timestamps are normalized UTC ISO-8601 strings, so the comparison is
+   * lexicographic and matches chronological order.
+   */
+  listUpcoming(now: string): Booking[] {
+    const rows = this.database.db
+      .prepare(
+        `SELECT b."id", b."meetingTypeId", b."startAt", b."endAt",
+                b."guestName", b."guestEmail", b."comment", b."createdAt",
+                m."name" AS "meetingTypeName",
+                m."description" AS "meetingTypeDescription",
+                m."durationMin" AS "meetingTypeDurationMin",
+                m."createdAt" AS "meetingTypeCreatedAt"
+         FROM "Booking" b
+         JOIN "MeetingType" m ON m."id" = b."meetingTypeId"
+         WHERE b."startAt" >= ?
+         ORDER BY b."startAt" ASC, b."id" ASC`,
+      )
+      .all(now) as BookingWithMeetingTypeRow[];
+
+    return rows.map(toBooking);
+  }
 
   create(input: PersistBookingInput): BookingRecord {
     const db = this.database.db;

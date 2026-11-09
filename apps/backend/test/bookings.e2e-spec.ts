@@ -370,4 +370,116 @@ describe('Bookings (e2e)', () => {
     expect(starts).not.toContain(ownerTimeIso(tomorrow, 9));
     expect(starts).toContain(ownerTimeIso(tomorrow, 9, 30));
   });
+
+  describe('GET /bookings?scope=upcoming', () => {
+    function listUpcoming(query: Record<string, unknown> = { scope: 'upcoming' }) {
+      return request(app.getHttpServer()).get('/bookings').query(query);
+    }
+
+    function insertPastBooking(meetingTypeId: number): void {
+      const startAt = ownerTimeIso(yesterday, 10);
+      const endAt = ownerTimeIso(yesterday, 10, 30);
+
+      database.db
+        .prepare(
+          `INSERT INTO "Booking"
+             ("meetingTypeId", "startAt", "endAt", "guestName", "guestEmail", "comment", "createdAt")
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          meetingTypeId,
+          startAt,
+          endAt,
+          'Past Guest',
+          'past@example.com',
+          null,
+          new Date().toISOString(),
+        );
+    }
+
+    it('returns only future bookings, ascending, with nested meeting types', async () => {
+      // Insert the later booking first so ascending order cannot come from insertion order.
+      await postBooking(
+        validPayload({
+          meetingTypeId: sixtyMinuteTypeId,
+          startAt: ownerTimeIso(tomorrow, 10),
+          guestName: 'Later Guest',
+          guestEmail: 'later@example.com',
+        }),
+      ).expect(201);
+      await postBooking(
+        validPayload({
+          startAt: ownerTimeIso(tomorrow, 9),
+          guestName: 'Earlier Guest',
+          guestEmail: 'earlier@example.com',
+        }),
+      ).expect(201);
+      insertPastBooking(thirtyMinuteTypeId);
+
+      const response = await listUpcoming().expect(200);
+
+      const body = response.body as BookingBody[];
+      expect(body.map((booking) => booking.guestName)).toEqual([
+        'Earlier Guest',
+        'Later Guest',
+      ]);
+      expect(body[0]).toMatchObject({
+        meetingTypeId: thirtyMinuteTypeId,
+        startAt: ownerTimeIso(tomorrow, 9),
+        endAt: ownerTimeIso(tomorrow, 9, 30),
+        guestEmail: 'earlier@example.com',
+        meetingType: {
+          id: thirtyMinuteTypeId,
+          name: 'Intro call',
+          description: 'A short chat.',
+          durationMin: 30,
+        },
+      });
+      expect(body[1]).toMatchObject({
+        meetingTypeId: sixtyMinuteTypeId,
+        startAt: ownerTimeIso(tomorrow, 10),
+        endAt: ownerTimeIso(tomorrow, 11),
+        guestEmail: 'later@example.com',
+        meetingType: {
+          id: sixtyMinuteTypeId,
+          name: 'Deep dive',
+          description: null,
+          durationMin: 60,
+        },
+      });
+    });
+
+    it('rejects a missing scope', async () => {
+      const response = await listUpcoming({}).expect(400);
+
+      expect(response.body).toMatchObject({
+        statusCode: 400,
+        code: 'validation_failed',
+        message: 'Request validation failed',
+      });
+      expect(response.body.details.fields).toEqual([
+        { field: 'scope', message: 'This field is required.' },
+      ]);
+    });
+
+    it('rejects an unsupported scope', async () => {
+      const response = await listUpcoming({ scope: 'past' }).expect(400);
+
+      expect(response.body).toMatchObject({
+        statusCode: 400,
+        code: 'validation_failed',
+      });
+      expect(response.body.details.fields).toEqual([
+        { field: 'scope', message: 'Must be "upcoming".' },
+      ]);
+    });
+
+    it('returns an empty list when nothing is upcoming', async () => {
+      insertPastBooking(thirtyMinuteTypeId);
+
+      const response = await listUpcoming().expect(200);
+
+      expect(response.body).toEqual([]);
+    });
+  });
 });

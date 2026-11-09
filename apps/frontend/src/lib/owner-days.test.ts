@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   BOOKING_HORIZON_DAYS,
   formatOwnerDayHeading,
+  formatOwnerDateTime,
   formatOwnerTime,
   ownerDateOf,
   ownerDays,
@@ -42,6 +43,15 @@ describe('formatOwnerTime', () => {
     ['2026-11-10T15:00:00.000Z', '18:00'],
   ])('formats %s as %s in Moscow', (iso, expected) => {
     expect(formatOwnerTime(iso)).toBe(expected)
+  })
+})
+
+describe('formatOwnerDateTime', () => {
+  it.each([
+    ['2026-11-10T06:00:00.000Z', 'Tue 10 Nov 2026, 09:00'],
+    ['2026-11-10T21:30:00.000Z', 'Wed 11 Nov 2026, 00:30'],
+  ])('formats %s as %s in Moscow', (iso, expected) => {
+    expect(formatOwnerDateTime(iso)).toBe(expected)
   })
 })
 

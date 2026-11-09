@@ -1,6 +1,7 @@
 import {
   availabilityList,
   bookingsCreate,
+  bookingsList,
   client,
   meetingTypesCreate,
   meetingTypesList,
@@ -125,4 +126,15 @@ export async function createBooking(
   }
 
   return { data: result.data, error: null }
+}
+
+/** Every booking that has not started yet, in the server's ascending order. */
+export async function listUpcomingBookings(): Promise<ApiResult<Booking[]>> {
+  const result = await bookingsList({ query: { scope: 'upcoming' } })
+
+  if (result.error !== undefined) {
+    return { data: null, error: normalizeApiError(result.error) }
+  }
+
+  return { data: result.data ?? [], error: null }
 }

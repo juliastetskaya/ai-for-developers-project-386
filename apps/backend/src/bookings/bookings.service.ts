@@ -18,6 +18,7 @@ import { BookingsRepository } from './bookings.repository.js';
 export const GUEST_NAME_MAX_LENGTH = 100;
 export const GUEST_EMAIL_MAX_LENGTH = 320;
 export const COMMENT_MAX_LENGTH = 2000;
+export const UPCOMING_SCOPE = 'upcoming';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** ISO-8601 instants must carry an explicit `Z` or numeric UTC offset. */
@@ -152,12 +153,38 @@ export function startAtViolation(
   return null;
 }
 
+/**
+ * Validates the `GET /bookings` query. The list endpoint supports exactly one
+ * scope for now; anything else is a field-level `validation_failed` error.
+ */
+export function parseListBookingsQuery(
+  query: Record<string, unknown>,
+): void {
+  const errors = new ValidationErrors();
+
+  const scope = readString(query, 'scope', errors, { required: true });
+  if (scope !== null && scope !== UPCOMING_SCOPE) {
+    errors.add('scope', 'Must be "upcoming".');
+  }
+
+  errors.throwIfAny();
+}
+
 @Injectable()
 export class BookingsService {
   constructor(
     private readonly meetingTypes: MeetingTypesService,
     private readonly repository: BookingsRepository,
   ) {}
+
+  listUpcoming(
+    query: Record<string, unknown>,
+    now: Date = new Date(),
+  ): Booking[] {
+    parseListBookingsQuery(query);
+
+    return this.repository.listUpcoming(now.toISOString());
+  }
 
   create(body: unknown, now: Date = new Date()): Booking {
     const parsed = parseCreateBooking(body);
