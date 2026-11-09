@@ -45,10 +45,8 @@ test('guest books a free slot and sees the confirmation', async ({
   await page.getByRole('link', { name: 'Book a call' }).first().click()
   await expect(page).toHaveURL(/\/book$/)
 
-  // Meeting type.
-  await page
-    .getByRole('button', { name: `Select ${meetingTypeName}` })
-    .click()
+  // Meeting type: the whole card is the button.
+  await page.getByRole('button', { name: meetingTypeName }).click()
 
   // Day: the second entry is tomorrow in Europe/Moscow, so it is always in
   // the future and inside the 14-day booking horizon.
@@ -56,7 +54,9 @@ test('guest books a free slot and sees the confirmation', async ({
     .getByRole('list', { name: 'Available days' })
     .getByRole('button')
   const dayButton = days.nth(1)
-  const dayLabel = (await dayButton.innerText()).split('\n')[0].trim()
+  const dayLabel = ((await dayButton.getAttribute('aria-label')) ?? '')
+    .replace(/, today$/, '')
+    .trim()
   const parsedDay = /^[A-Za-z]{3} (\d{1,2}) ([A-Za-z]{3})$/.exec(dayLabel)
   expect(parsedDay, `unexpected day label: ${dayLabel}`).not.toBeNull()
   const [, dayNumber, monthShort] = parsedDay!

@@ -86,7 +86,7 @@ async function selectIntroCall() {
   render(<BookingPage />)
 
   await screen.findByRole('heading', { name: 'Intro call' })
-  fireEvent.click(screen.getByRole('button', { name: 'Select Intro call' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Intro call' }))
   await screen.findByRole('heading', { name: 'Choose a day and time' })
 }
 
@@ -145,6 +145,15 @@ describe('BookingPage', () => {
       screen.getByRole('heading', { name: 'Strategy call' }),
     ).toBeInTheDocument()
     expect(screen.getByText('60 minutes')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Intro call' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Strategy call' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /^Select / }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows a loading state while meeting types are being fetched', async () => {
@@ -320,7 +329,7 @@ describe('BookingPage', () => {
     try {
       await selectIntroCall()
 
-      expect(dayButtons()[0]).toHaveTextContent('Mon 9 Nov')
+      expect(dayButtons()[0]).toHaveAccessibleName('Mon 9 Nov, today')
 
       vi.setSystemTime(new Date('2026-11-10T13:00:00.000Z')) // 16:00 in Moscow
       await act(async () => {
@@ -328,8 +337,8 @@ describe('BookingPage', () => {
       })
 
       expect(dayButtons()).toHaveLength(14)
-      expect(dayButtons()[0]).toHaveTextContent('Tue 10 Nov')
-      expect(dayButtons().at(-1)).toHaveTextContent('Mon 23 Nov')
+      expect(dayButtons()[0]).toHaveAccessibleName('Tue 10 Nov, today')
+      expect(dayButtons().at(-1)).toHaveAccessibleName('Mon 23 Nov')
     } finally {
       vi.useRealTimers()
     }
@@ -398,8 +407,25 @@ describe('BookingPage', () => {
     expect(screen.getByText('ada@example.com')).toBeInTheDocument()
     expect(screen.getByText('Looking forward to it.')).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Book another meeting' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Book another meeting' }),
+    ).toBeInTheDocument()
+  })
+
+  it('starts a new booking from the confirmation screen', async () => {
+    await selectFirstSlot()
+    mockedCreateBooking.mockResolvedValue({ data: createdBooking, error: null })
+
+    fillGuestDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm booking' }))
+    await screen.findByRole('heading', { name: 'Booking confirmed' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Book another meeting' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Choose a meeting type' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Booking confirmed')).not.toBeInTheDocument()
+    expect(mockedListMeetingTypes).toHaveBeenCalledTimes(2)
   })
 
   it('renders field-level errors returned by the API next to the fields', async () => {
