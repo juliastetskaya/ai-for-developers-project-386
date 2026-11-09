@@ -3,6 +3,7 @@ import {
   BOOKING_HORIZON_DAYS,
   formatOwnerDayHeading,
   formatOwnerTime,
+  ownerDateOf,
   ownerDays,
 } from './owner-days'
 
@@ -49,5 +50,12 @@ describe('formatOwnerDayHeading', () => {
     expect(formatOwnerDayHeading('2026-11-10')).toBe(
       'Tuesday, 10 November 2026',
     )
+  })
+})
+
+describe('ownerDateOf', () => {
+  it('maps a UTC instant to the Moscow calendar date', () => {
+    expect(ownerDateOf('2026-11-09T22:30:00.000Z')).toBe('2026-11-10')
+    expect(ownerDateOf('2026-11-10T06:00:00.000Z')).toBe('2026-11-10')
   })
 })

@@ -1,8 +1,11 @@
 import {
   availabilityList,
+  bookingsCreate,
   client,
   meetingTypesCreate,
   meetingTypesList,
+  type Booking,
+  type CreateBookingRequest,
   type CreateMeetingTypeRequest,
   type FieldError,
   type MeetingType,
@@ -103,4 +106,23 @@ export async function getAvailability(
   }
 
   return { data: result.data ?? [], error: null }
+}
+
+export async function createBooking(
+  input: CreateBookingRequest,
+): Promise<ApiResult<Booking>> {
+  const result = await bookingsCreate({ body: input })
+
+  if (result.error !== undefined) {
+    return { data: null, error: normalizeApiError(result.error) }
+  }
+
+  if (result.data === undefined) {
+    return {
+      data: null,
+      error: { status: 0, code: 'network_error', message: FALLBACK_MESSAGE },
+    }
+  }
+
+  return { data: result.data, error: null }
 }

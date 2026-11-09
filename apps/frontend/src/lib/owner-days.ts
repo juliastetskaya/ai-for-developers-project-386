@@ -50,3 +50,10 @@ export function formatOwnerDayHeading(date: string): string {
     { locale: LOCALE },
   )
 }
+
+/** The owner-timezone calendar date of a UTC ISO-8601 instant. */
+export function ownerDateOf(iso: string): string {
+  return DateTime.fromISO(iso, { zone: 'utc' })
+    .setZone(OWNER_TIMEZONE)
+    .toISODate()!
+}
