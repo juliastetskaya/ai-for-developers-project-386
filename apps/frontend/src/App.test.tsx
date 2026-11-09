@@ -40,6 +40,20 @@ test('/book renders the booking page placeholder', () => {
   ).toBeInTheDocument()
 })
 
+test('the header booking CTA is hidden on the booking page', () => {
+  renderAt('/book')
+  expect(
+    screen.queryByRole('link', { name: 'Book a call' }),
+  ).not.toBeInTheDocument()
+})
+
+test('the header booking CTA is shown outside the booking page', () => {
+  renderAt('/admin')
+  expect(
+    screen.getByRole('link', { name: 'Book a call' }),
+  ).toHaveAttribute('href', '/book')
+})
+
 test('/admin renders the owner dashboard placeholder', () => {
   renderAt('/admin')
   expect(
