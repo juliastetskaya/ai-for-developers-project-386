@@ -72,7 +72,19 @@ run = "node --test scripts/ci-config.test.mjs && actionlint"
 
 [tasks.check]
 description = "Run all checks: lint, typecheck, tests (unit + e2e), build, SDK freshness, version sync, release-please and CI config"
-depends = ["lint", "typecheck", "test", "build", "check:sdk", "check:versions", "check:release-please", "check:ci"]
+# Run the gates sequentially: `check:sdk` regenerates the SDK in place, so running
+# it concurrently with typecheck/tests/build can race on the generated client.
+run = """
+set -e
+mise run lint
+mise run check:sdk
+mise run typecheck
+mise run test
+mise run build
+mise run check:versions
+mise run check:release-please
+mise run check:ci
+"""
 
 [daemons.backend]
 run = "exec pnpm dev:backend"
