@@ -12,7 +12,10 @@
     "test:backend": "pnpm --filter backend test",
     "generate:api": "pnpm --filter typespec compile && pnpm --filter api-client generate",
     "typecheck": "pnpm -r --if-present typecheck",
-    "lint": "pnpm -r --if-present lint"
+    "lint": "pnpm -r --if-present lint",
+    "sync-versions": "node scripts/sync-versions.mjs",
+    "check-versions": "node scripts/sync-versions.mjs --check",
+    "test-versions": "node --test scripts/sync-versions.test.mjs"
   },
   "keywords": [],
   "author": "",
