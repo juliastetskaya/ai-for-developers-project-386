@@ -39,6 +39,11 @@ Thumbs.db
 # Test coverage
 coverage/
 
+# Playwright artifacts
+test-results/
+playwright-report/
+blob-report/
+
 # Local SQLite data
 apps/backend/data/
 *.db

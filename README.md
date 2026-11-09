@@ -55,6 +55,7 @@ mise run setup   # установить зависимости и сгенери
 - `mise run typecheck` — проверка типов во всех пакетах
 - `mise run test` — unit-тесты backend, e2e-тесты backend и тесты frontend
 - `mise run test:e2e` — только e2e-тесты backend
+- `mise run e2e:golden` — Playwright golden path гостя против реально запущенных backend и frontend (не входит в `check` и CI, см. [Golden path](#golden-path-playwright))
 - `mise run check` — все проверки разом: линтинг, типы, тесты (unit + e2e), сборка, актуальность сгенерированного SDK, единая версия пакетов и валидация CI (эта же команда запускается в GitHub Actions, см. [docs/ci.md](docs/ci.md))
 - `mise run check:versions` — проверить, что версии всех workspace-пакетов совпадают с корневой (входит в `check`)
 - `mise run check:release-please` — проверить конфигурацию release-please: единый пакет, совпадение версии манифеста с корневой, покрытие всех workspace-пакетов в `extra-files` (входит в `check`)
@@ -73,6 +74,40 @@ mise run setup   # установить зависимости и сгенери
 определяют Conventional Commits: `feat` — minor, `fix`/`perf`/`revert` — patch,
 `!`/`BREAKING CHANGE` — major; остальные типы релиз не создают. Полный флоу и таблица типов —
 в [docs/releases.md](docs/releases.md).
+
+### Golden path (Playwright)
+
+Один сквозной браузерный сценарий гостя: Landing → `/book` → выбор Meeting Type → выбор дня →
+свободный Slot → форма (имя, email, комментарий) → экран подтверждения. Тест работает против
+настоящих backend и frontend.
+
+Предусловия:
+
+```bash
+mise install                     # инструменты из mise.toml
+mise run setup                   # зависимости и сгенерированный API SDK
+pnpm exec playwright install chromium   # один раз: браузер для Playwright
+mise daemons stop                # порты 3000 и 5173 должны быть свободны
+```
+
+Запуск:
+
+```bash
+mise run e2e:golden              # или pnpm test:golden-path
+```
+
+Что происходит:
+
+- Playwright поднимает оба сервера сам (`webServer`): backend на `http://localhost:3000`,
+  frontend на `http://localhost:5173`, и останавливает их после прогона.
+- Backend запускается обёрткой `scripts/playwright-backend.mjs` с отдельной SQLite-базой
+  во временном каталоге (`<tmp>/call-calendar-playwright/e2e.db`). Файлы базы удаляются перед
+  каждым запуском, миграции применяются при старте, поэтому прогоны изолированы и dev-база
+  не затрагивается.
+- Тест сам создаёт уникальный Meeting Type через API и выбирает второй день горизонта
+  (завтра по Europe/Moscow), поэтому не зависит от Owner Dashboard и существующих данных.
+- Команда **не входит** в `mise run check` и в CI: она требует браузер и запускает реальные
+  серверы. Если порты заняты dev-демонами, сначала выполните `mise daemons stop`.
 
 ### Фоновые серверы (демоны)
 

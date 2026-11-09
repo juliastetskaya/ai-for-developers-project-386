@@ -55,6 +55,10 @@ mise run check          # everything above, exactly what CI runs
 Individual package commands remain available: `pnpm --filter backend test:e2e`,
 `pnpm --filter backend build`, `pnpm --filter frontend build`, etc.
 
+The Playwright golden path (`mise run e2e:golden`) is intentionally **not** part of
+`mise run check` or the CI workflow: it needs a browser, real backend/frontend servers and
+free ports 3000/5173. It is documented in the [README](../README.md#golden-path-playwright).
+
 ## Required status check / branch protection
 
 The required check is applied on `main` (the repository's default branch). Configured

@@ -18,10 +18,14 @@
     "check-versions": "node scripts/sync-versions.mjs --check",
     "test-versions": "node --test scripts/sync-versions.test.mjs",
     "check-release-please": "node scripts/check-release-please.mjs",
-    "test-release-please": "node --test scripts/check-release-please.test.mjs"
+    "test-release-please": "node --test scripts/check-release-please.test.mjs",
+    "test:golden-path": "playwright test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.15.1"
+  "packageManager": "pnpm@10.15.1",
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
 }
