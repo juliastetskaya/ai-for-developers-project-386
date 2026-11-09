@@ -53,8 +53,10 @@ mise run setup   # установить зависимости и сгенери
 - `mise run build` — сборка backend и frontend
 - `mise run lint` — линтинг всех пакетов
 - `mise run typecheck` — проверка типов во всех пакетах
-- `mise run test` — тесты backend и frontend
-- `mise run check` — все проверки разом: линтинг, типы, тесты и актуальность сгенерированного SDK (эта же команда запускается в GitHub Actions)
+- `mise run test` — unit-тесты backend, e2e-тесты backend и тесты frontend
+- `mise run test:e2e` — только e2e-тесты backend
+- `mise run build` — сборка backend и frontend
+- `mise run check` — все проверки разом: линтинг, типы, тесты (unit + e2e), сборка, актуальность сгенерированного SDK и валидация CI (эта же команда запускается в GitHub Actions, см. [docs/ci.md](docs/ci.md))
 
 ### Фоновые серверы (демоны)
 

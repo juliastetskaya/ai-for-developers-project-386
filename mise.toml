@@ -6,6 +6,7 @@ node = "22.16.0"
 pnpm = "10.15.1"
 hk = "2.11.1"
 pitchfork = "2.33.1"
+actionlint = "1.7.12"
 
 [tasks.setup]
 description = "Install dependencies and generate the API SDK"
@@ -32,8 +33,12 @@ description = "Typecheck all packages"
 run = "pnpm typecheck"
 
 [tasks.test]
-description = "Run backend and frontend tests"
-run = "pnpm test:backend && pnpm test:frontend"
+description = "Run backend unit tests, backend e2e tests, and frontend tests"
+run = "pnpm test:backend && pnpm test:e2e && pnpm test:frontend"
+
+[tasks."test:e2e"]
+description = "Run backend e2e tests"
+run = "pnpm test:e2e"
 
 [tasks."check:sdk"]
 description = "Verify the generated API SDK is up to date"
@@ -52,9 +57,13 @@ if [ -d "$TMP_DIR/client-before" ] && ! diff -r "$TMP_DIR/client-before" "$SDK_D
 fi
 """
 
+[tasks."check:ci"]
+description = "Validate CI config and workflow files"
+run = "node --test scripts/ci-config.test.mjs && actionlint"
+
 [tasks.check]
-description = "Run all checks: lint, typecheck, tests, SDK freshness"
-depends = ["lint", "typecheck", "test", "check:sdk"]
+description = "Run all checks: lint, typecheck, tests (unit + e2e), build, SDK freshness, CI config"
+depends = ["lint", "typecheck", "test", "build", "check:sdk", "check:ci"]
 
 [daemons.backend]
 run = "exec pnpm dev:backend"
