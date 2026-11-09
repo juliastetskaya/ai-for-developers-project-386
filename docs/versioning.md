@@ -44,10 +44,11 @@ Run 'pnpm sync-versions' to fix.
 
 ## Связь с release-please (#24)
 
-Release-please будет управлять версией через `release-please-config.json` (release-type `node`)
+Релизами управляет release-please через `release-please-config.json` (release-type `node`)
 для корневого пакета. Корневой `package.json` он обновляет сам, а workspace-манифесты нужно
 явно перечислить в `extra-files` с JSON-обновлением поля `version`, иначе релизный PR изменит
-только корень и уронит `check:versions`:
+только корень и уронит `check:versions`. Полный флоу релизов, типы коммитов и правила —
+в [releases.md](releases.md).
 
 ```json
 {
