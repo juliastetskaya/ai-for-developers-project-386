@@ -26,5 +26,8 @@ jobs:
       - name: Install dependencies and generate API SDK
         run: mise run setup
 
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Run all checks
         run: mise run check

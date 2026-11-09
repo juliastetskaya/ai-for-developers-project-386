@@ -25,7 +25,7 @@ const child = spawn('pnpm', ['--filter', 'backend', 'start'], {
   env: {
     ...process.env,
     DATABASE_URL: `file:${databasePath}`,
-    PORT: process.env.PORT ?? '3000',
+    PORT: process.env.PORT ?? '3100',
   },
 })
 

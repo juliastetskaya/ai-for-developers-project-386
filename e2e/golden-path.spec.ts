@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 
-const API_URL = process.env.E2E_API_URL ?? 'http://localhost:3000'
+const API_URL = process.env.E2E_API_URL ?? 'http://localhost:3100'
 
 const MONTHS: Record<string, string> = {
   Jan: 'January',

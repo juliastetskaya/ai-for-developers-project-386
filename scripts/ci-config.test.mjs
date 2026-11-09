@@ -34,12 +34,24 @@ test('mise check runs every gate sequentially: lint, SDK freshness, typecheck, u
     /^\s*depends\s*=/m,
     'check must run its gates sequentially: check:sdk regenerates the SDK in place',
   );
-  for (const gate of ['lint', 'check:sdk', 'typecheck', 'test', 'build']) {
+  for (const gate of [
+    'lint',
+    'check:sdk',
+    'typecheck',
+    'test',
+    'e2e:golden',
+    'build',
+  ]) {
     assert.ok(
       section.includes(`mise run ${gate}`),
       `mise check must run "${gate}"`,
     );
   }
+});
+
+test('CI installs Playwright before running the shared check gate', () => {
+  const workflow = read('.github/workflows/check.yml');
+  assert.match(workflow, /playwright install --with-deps chromium/);
 });
 
 test('mise test includes backend e2e tests', () => {

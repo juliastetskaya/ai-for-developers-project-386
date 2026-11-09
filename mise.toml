@@ -75,7 +75,7 @@ description = "Validate CI config and workflow files"
 run = "node --test scripts/ci-config.test.mjs && actionlint"
 
 [tasks.check]
-description = "Run all checks: lint, typecheck, tests (unit + e2e), build, SDK freshness, version sync, release-please and CI config"
+description = "Run all checks: lint, typecheck, unit + e2e tests, browser golden path, build, SDK freshness, version sync, release-please and CI config"
 # Run the gates sequentially: `check:sdk` regenerates the SDK in place, so running
 # it concurrently with typecheck/tests/build can race on the generated client.
 run = """
@@ -84,6 +84,7 @@ mise run lint
 mise run check:sdk
 mise run typecheck
 mise run test
+mise run e2e:golden
 mise run build
 mise run check:versions
 mise run check:release-please

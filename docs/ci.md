@@ -13,7 +13,8 @@ the PR check pipeline.
 2. `jdx/mise-action` — installs the pinned toolchain from `mise.toml`
    (Node, pnpm, hk, pitchfork, actionlint).
 3. `mise run setup` — `pnpm install` + `pnpm generate:api` (TypeSpec → OpenAPI → SDK).
-4. `mise run check` — the same gate developers run locally.
+4. `pnpm exec playwright install --with-deps chromium` — the browser for the golden path.
+5. `mise run check` — the same gate developers run locally.
 
 `mise run check` fans out to:
 
@@ -22,6 +23,7 @@ the PR check pipeline.
 | `lint`      | oxlint (type-aware for the backend) passes for every package, plus `e2e/`, `playwright.config.ts` and `scripts/`. |
 | `typecheck` | `tsc` passes for backend, frontend (`tsc -b`), the API client, and the golden-path files (`tsconfig.e2e.json`). |
 | `test`      | backend unit tests, backend e2e tests, then frontend component tests. |
+| `e2e:golden` | the Playwright guest flow against real backend + frontend servers and a dedicated SQLite database; the booking API is never mocked. |
 | `build`     | backend (`nest build`) and frontend (`vite build`) compile.           |
 | `check:sdk` | regenerating the SDK produces no diff (generated artifacts are fresh).|
 | `check:versions` | every workspace package uses the root `package.json` version.       |
@@ -44,6 +46,7 @@ mise run lint           # lint
 mise run typecheck      # types
 mise run test           # backend unit + backend e2e + frontend
 mise run test:e2e       # backend e2e only (independent)
+mise run e2e:golden     # Playwright golden path (also part of `check`)
 mise run build          # backend build + frontend build
 mise run check:sdk      # generated SDK freshness
 mise run check:versions # single-version drift across workspace packages
@@ -55,10 +58,11 @@ mise run check          # everything above, exactly what CI runs
 Individual package commands remain available: `pnpm --filter backend test:e2e`,
 `pnpm --filter backend build`, `pnpm --filter frontend build`, etc.
 
-The Playwright golden path (`mise run e2e:golden`) is intentionally **not executed** by
-`mise run check` or the CI workflow: it needs a browser, real backend/frontend servers and
-free ports 3000/5173. Its TypeScript and scripts are still covered offline: `lint` runs
-oxlint over `e2e/`, `playwright.config.ts` and `scripts/`, and `typecheck` runs
+The Playwright golden path (`mise run e2e:golden`) is part of `mise run check`, so it runs
+both locally and in CI with the real backend and frontend and a dedicated SQLite database.
+It uses dedicated ports `3100` (API) and `5273` (frontend), so it does not collide with the
+dev servers on `3000`/`5173`. Its TypeScript and scripts are also covered offline: `lint`
+runs oxlint over `e2e/`, `playwright.config.ts` and `scripts/`, and `typecheck` runs
 `tsc -p tsconfig.e2e.json`. It is documented in the
 [README](../README.md#golden-path-playwright).
 

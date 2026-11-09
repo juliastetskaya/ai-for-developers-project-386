@@ -312,6 +312,47 @@ describe('Bookings (e2e)', () => {
     });
   });
 
+  it('rejects a partial overlap between meetings of different durations', async () => {
+    // 60-minute booking at 10:00 occupies 10:00–11:00.
+    await postBooking(
+      validPayload({
+        meetingTypeId: sixtyMinuteTypeId,
+        startAt: ownerTimeIso(tomorrow, 10),
+        guestName: 'Long Meeting',
+        guestEmail: 'long@example.com',
+      }),
+    ).expect(201);
+
+    // 30-minute booking at 10:30 partially overlaps the longer meeting.
+    const response = await postBooking(
+      validPayload({
+        meetingTypeId: thirtyMinuteTypeId,
+        startAt: ownerTimeIso(tomorrow, 10, 30),
+        guestName: 'Short Meeting',
+        guestEmail: 'short@example.com',
+      }),
+    ).expect(409);
+
+    expect(response.body).toEqual({
+      statusCode: 409,
+      code: 'slot_unavailable',
+      message: 'The selected slot is no longer available',
+    });
+
+    const availability = await request(app.getHttpServer())
+      .get('/availability')
+      .query({ meetingTypeId: thirtyMinuteTypeId, date: tomorrow })
+      .expect(200);
+    const starts = (availability.body as SlotBody[]).map(
+      (slot) => slot.startAt,
+    );
+
+    expect(starts).not.toContain(ownerTimeIso(tomorrow, 10));
+    expect(starts).not.toContain(ownerTimeIso(tomorrow, 10, 30));
+    expect(starts).toContain(ownerTimeIso(tomorrow, 9, 30));
+    expect(starts).toContain(ownerTimeIso(tomorrow, 11));
+  });
+
   it('allows a booking that only touches the boundary of an existing one', async () => {
     await postBooking(validPayload()).expect(201);
 
