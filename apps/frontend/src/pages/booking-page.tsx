@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Booking, MeetingType, Slot } from 'api-client'
 import { AsyncSection } from '@/components/async-section'
+import BookingCalendar from '@/components/booking-calendar'
 import { Button } from '@/components/ui/button'
 import {
   createBooking,
@@ -308,6 +309,15 @@ function BookingPage() {
             )}
           </dl>
         </article>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={() => restartBookingFlow()}
+        >
+          Book another meeting
+        </Button>
       </section>
     )
   }
@@ -362,9 +372,14 @@ function BookingPage() {
             <ul className="grid gap-4 sm:grid-cols-2">
               {meetingTypes.map((meetingType) => (
                 <li key={meetingType.id}>
-                  <article className="flex h-full flex-col gap-2 rounded-lg border bg-card p-6">
+                  <article className="relative flex h-full flex-col gap-2 rounded-lg border bg-card p-6 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-within:ring-3 focus-within:ring-ring/50">
                     <div className="flex items-start justify-between gap-4">
-                      <h3 className="text-lg font-medium">{meetingType.name}</h3>
+                      <h3
+                        id={`meeting-type-${meetingType.id}`}
+                        className="text-lg font-medium"
+                      >
+                        {meetingType.name}
+                      </h3>
                       <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm whitespace-nowrap">
                         {meetingType.durationMin} minutes
                       </span>
@@ -374,15 +389,12 @@ function BookingPage() {
                         {meetingType.description}
                       </p>
                     )}
-                    <Button
+                    <button
                       type="button"
-                      variant="outline"
-                      aria-label={`Select ${meetingType.name}`}
-                      className="mt-auto self-start"
+                      aria-labelledby={`meeting-type-${meetingType.id}`}
                       onClick={() => selectMeetingType(meetingType)}
-                    >
-                      Select
-                    </Button>
+                      className="absolute inset-0 cursor-pointer rounded-lg focus-visible:outline-none"
+                    />
                   </article>
                 </li>
               ))}
@@ -413,36 +425,29 @@ function BookingPage() {
             </Button>
           </div>
 
-          <section aria-labelledby="choose-day-heading" className="flex flex-col gap-3">
-            <h3 id="choose-day-heading" className="text-lg font-medium">
-              Choose a day
-            </h3>
-            <ul
-              aria-label="Available days"
-              className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+            <section
+              aria-labelledby="choose-day-heading"
+              className="flex flex-col gap-4 rounded-lg border bg-card p-4 sm:p-6"
             >
-              {days.map((day) => (
-                <li key={day.date}>
-                  <button
-                    type="button"
-                    aria-pressed={selectedDate === day.date}
-                    onClick={() => selectDay(day.date)}
-                    className="flex w-full flex-col items-center gap-0.5 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-muted aria-pressed:border-foreground aria-pressed:bg-muted"
-                  >
-                    <span className="font-medium">{day.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {day.isToday ? 'Today' : ''}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
+              <div className="flex flex-col gap-1">
+                <h3 id="choose-day-heading" className="text-lg font-medium">
+                  Choose a day
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Next 14 days · {OWNER_TIMEZONE}
+                </p>
+              </div>
+              <BookingCalendar
+                days={days}
+                selectedDate={activeDate}
+                onSelect={selectDay}
+              />
+            </section>
 
-          {activeDate !== null && (
             <section
               aria-labelledby="available-times-heading"
-              className="flex flex-col gap-3"
+              className="flex flex-col gap-4 rounded-lg border bg-card p-4 sm:p-6 lg:sticky lg:top-6"
             >
               <div className="flex flex-col gap-1">
                 <h3
@@ -452,56 +457,64 @@ function BookingPage() {
                   Available times
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {formatOwnerDayHeading(activeDate)} · {OWNER_TIMEZONE}
+                  {activeDate === null
+                    ? 'Pick a day to see available times.'
+                    : `${formatOwnerDayHeading(activeDate)} · ${OWNER_TIMEZONE}`}
                 </p>
               </div>
 
-              {conflictMessage && (
-                <div
-                  role="alert"
-                  className="rounded-lg border border-destructive/40 bg-destructive/5 p-4"
-                >
-                  <p>{conflictMessage}</p>
-                </div>
-              )}
+              {activeDate !== null && (
+                <>
+                  {conflictMessage && (
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-destructive/40 bg-destructive/5 p-4"
+                    >
+                      <p>{conflictMessage}</p>
+                    </div>
+                  )}
 
-              <AsyncSection
-                status={slotsStatus}
-                loadingMessage="Loading available slots..."
-                errorMessage={
-                  slotsError?.code === 'date_out_of_range'
-                    ? 'This date is outside the booking horizon. Pick another day.'
-                    : `Couldn't load available slots. ${slotsError?.message ?? ''}`
-                }
-                onRetry={
-                  slotsError?.code === 'date_out_of_range'
-                    ? undefined
-                    : retrySlots
-                }
-                isEmpty={slots.length === 0}
-                emptyTitle="No free slots on this day"
-                emptyMessage="Every time on this day is already booked. Pick another day."
-              >
-                <ul
-                  aria-label="Available slots"
-                  className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
-                >
-                  {slots.map((slot) => (
-                    <li key={slot.startAt}>
-                      <button
-                        type="button"
-                        aria-pressed={selectedSlotStart === slot.startAt}
-                        onClick={() => selectSlot(slot)}
-                        className="w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted aria-pressed:border-foreground aria-pressed:bg-muted"
-                      >
-                        {formatOwnerTime(slot.startAt)}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </AsyncSection>
+                  <AsyncSection
+                    status={slotsStatus}
+                    loadingMessage="Loading available slots..."
+                    errorMessage={
+                      slotsError?.code === 'date_out_of_range'
+                        ? 'This date is outside the booking horizon. Pick another day.'
+                        : `Couldn't load available slots. ${slotsError?.message ?? ''}`
+                    }
+                    onRetry={
+                      slotsError?.code === 'date_out_of_range'
+                        ? undefined
+                        : retrySlots
+                    }
+                    isEmpty={slots.length === 0}
+                    emptyTitle="No free slots on this day"
+                    emptyMessage="Every time on this day is already booked. Pick another day."
+                  >
+                    <ul
+                      aria-label="Available slots"
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      {slots.map((slot) => (
+                        <li key={slot.startAt}>
+                          <button
+                            type="button"
+                            aria-pressed={
+                              selectedSlotStart === slot.startAt
+                            }
+                            onClick={() => selectSlot(slot)}
+                            className="h-10 w-full rounded-lg border px-2 text-sm font-medium transition-colors hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                          >
+                            {formatOwnerTime(slot.startAt)}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </AsyncSection>
+                </>
+              )}
             </section>
-          )}
+          </div>
 
           {selectedSlot !== null && (
             <section
@@ -624,7 +637,11 @@ function BookingPage() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button
+                    type="submit"
+                    className="h-11 px-6 text-base"
+                    disabled={isSubmitting}
+                  >
                     {isSubmitting ? 'Booking...' : 'Confirm booking'}
                   </Button>
                   {submitError && (
