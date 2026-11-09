@@ -2,6 +2,12 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import App from './App'
 
+vi.mock('@/lib/api', () => ({
+  listMeetingTypes: vi.fn().mockResolvedValue({ data: [], error: null }),
+  createMeetingType: vi.fn(),
+  listUpcomingBookings: vi.fn().mockResolvedValue({ data: [], error: null }),
+}))
+
 function renderAt(route: string) {
   render(
     <MemoryRouter initialEntries={[route]}>
@@ -32,6 +38,20 @@ test('/book renders the booking page placeholder', () => {
   expect(
     screen.getByRole('heading', { name: 'Booking' }),
   ).toBeInTheDocument()
+})
+
+test('the header booking CTA is hidden on the booking page', () => {
+  renderAt('/book')
+  expect(
+    screen.queryByRole('link', { name: 'Book a call' }),
+  ).not.toBeInTheDocument()
+})
+
+test('the header booking CTA is shown outside the booking page', () => {
+  renderAt('/admin')
+  expect(
+    screen.getByRole('link', { name: 'Book a call' }),
+  ).toHaveAttribute('href', '/book')
 })
 
 test('/admin renders the owner dashboard placeholder', () => {

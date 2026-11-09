@@ -26,7 +26,8 @@
 - **Свободные слоты = рабочие часы − занятые интервалы** (учитывается длительность выбранного типа встречи).
 - **Доступность владельца** задаётся фиксированными рабочими часами — нарезка слотов идёт только внутри этого окна.
 - **Данные гостя при бронировании:** имя, email, комментарий.
-- Нет отмены/переноса, уведомлений, таймзон, авторизации — сознательно вне скоупа.
+- **Часовой пояс не выбирается пользователем:** рабочие часы владельца, «сегодня» и горизонт фиксированы в `Europe/Moscow` (константа), а хранение и API работают в UTC. Гость видит время в поясе владельца. Подробности — в [ADR 0003](docs/adr/0003-owner-timezone-and-booking-horizon.md).
+- Нет отмены/переноса, уведомлений, авторизации и выбора часового пояса — сознательно вне скоупа.
 
 ## Стек
 
@@ -53,8 +54,66 @@ mise run setup   # установить зависимости и сгенери
 - `mise run build` — сборка backend и frontend
 - `mise run lint` — линтинг всех пакетов
 - `mise run typecheck` — проверка типов во всех пакетах
-- `mise run test` — тесты backend и frontend
-- `mise run check` — все проверки разом: линтинг, типы, тесты и актуальность сгенерированного SDK (эта же команда запускается в GitHub Actions)
+- `mise run test` — unit-тесты backend, e2e-тесты backend и тесты frontend
+- `mise run test:e2e` — только e2e-тесты backend
+- `mise run e2e:golden` — Playwright golden path гостя против реально запущенных backend и frontend (входит в `check` и CI, см. [Golden path](#golden-path-playwright))
+- `mise run check` — все проверки разом: линтинг, типы, тесты (unit + e2e), браузерный golden path, сборка, актуальность сгенерированного SDK, единая версия пакетов и валидация CI (эта же команда запускается в GitHub Actions, см. [docs/ci.md](docs/ci.md))
+- `mise run check:versions` — проверить, что версии всех workspace-пакетов совпадают с корневой (входит в `check`)
+- `mise run check:release-please` — проверить конфигурацию release-please: единый пакет, совпадение версии манифеста с корневой, покрытие всех workspace-пакетов в `extra-files` (входит в `check`)
+
+### Версионирование
+
+Версия у проекта одна на весь монорепозиторий. Источник истины — поле `version` в корневом
+`package.json`; `pnpm sync-versions` проставляет её во все workspace-пакеты, а
+`pnpm check-versions` (в составе `mise run check`) ловит расхождения. Подробности, правило
+синхронизации и требования к `release-please` — в [docs/versioning.md](docs/versioning.md).
+
+### Релизы
+
+Релизы готовятся автоматически через release-please: на push в `main` он открывает Release PR
+с новой версией и CHANGELOG, а после мёржа создаёт GitHub Release и тег `vX.Y.Z`. Версию
+определяют Conventional Commits: `feat` — minor, `fix`/`perf`/`revert` — patch,
+`!`/`BREAKING CHANGE` — major; остальные типы релиз не создают. Полный флоу и таблица типов —
+в [docs/releases.md](docs/releases.md).
+
+### Golden path (Playwright)
+
+Один сквозной браузерный сценарий гостя: Landing → `/book` → выбор Meeting Type → выбор дня →
+свободный Slot → форма (имя, email, комментарий) → экран подтверждения. Тест работает против
+настоящих backend и frontend.
+
+Предусловия:
+
+```bash
+mise install                     # инструменты из mise.toml
+mise run setup                   # зависимости и сгенерированный API SDK
+pnpm exec playwright install chromium   # один раз: браузер для Playwright
+```
+
+Запуск:
+
+```bash
+mise run e2e:golden              # или pnpm test:golden-path
+```
+
+`mise run check` запускает этот сценарий автоматически, поэтому отдельная команда нужна
+только для отладки. Golden path использует отдельные порты `3100` (API) и `5273` (frontend),
+поэтому не конфликтует с dev-серверами на `3000`/`5173`.
+
+Что происходит:
+
+- Playwright поднимает оба сервера сам (`webServer`): backend на `http://localhost:3100`,
+  frontend на `http://localhost:5273`, и останавливает их после прогона.
+- Backend запускается обёрткой `scripts/playwright-backend.mjs` с отдельной SQLite-базой
+  во временном каталоге (`<tmp>/call-calendar-playwright/e2e.db`). Файлы базы удаляются перед
+  каждым запуском, миграции применяются при старте, поэтому прогоны изолированы и dev-база
+  не затрагивается.
+- Тест сам создаёт уникальный Meeting Type через API и выбирает второй день горизонта
+  (завтра по Europe/Moscow), поэтому не зависит от Owner Dashboard и существующих данных.
+- Команда **входит** в `mise run check` и CI: локально и в GitHub Actions сценарий проходит
+  в настоящем браузере против реальных серверов, без подмены ответов API бронирования.
+- Файлы golden path (`e2e/`, `playwright.config.ts`, `scripts/`) дополнительно проверяются
+  офлайн: `lint` запускает oxlint, а `typecheck` — `tsc -p tsconfig.e2e.json`.
 
 ### Фоновые серверы (демоны)
 

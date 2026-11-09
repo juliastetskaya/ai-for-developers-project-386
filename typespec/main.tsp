@@ -5,16 +5,325 @@ using TypeSpec.Http;
 @service(#{ title: "Call Calendar API" })
 namespace CallCalendarApi;
 
+model HealthStatus {
+  status: "ok";
+}
+
+// ---------------------------------------------------------------------------
+// Error envelope: every API error has { statusCode, code, message, details? }.
+// `details` is present only for the codes that define a shape for it.
+// ---------------------------------------------------------------------------
+
+model FieldError {
+  /** Form field name the error belongs to. */
+  field: string;
+  /** Human-readable explanation for that field. */
+  message: string;
+}
+
+model ValidationErrorDetails {
+  fields: FieldError[];
+}
+
+model MeetingTypeNotFoundDetails {
+  meetingTypeId: int32;
+}
+
+model DateOutOfRangeDetails {
+  /** Requested calendar date, formatted as YYYY-MM-DD. */
+  date: string;
+  /** Earliest bookable calendar date, formatted as YYYY-MM-DD. */
+  earliestDate: string;
+  /** Latest bookable calendar date, formatted as YYYY-MM-DD. */
+  latestDate: string;
+}
+
+/** Request fields failed validation. */
+model ValidationFailedError {
+  statusCode: 400;
+  code: "validation_failed";
+  message: string;
+  details: ValidationErrorDetails;
+}
+
+/** The selected time interval now overlaps an existing Booking. */
+model SlotUnavailableError {
+  statusCode: 409;
+  code: "slot_unavailable";
+  message: string;
+}
+
+/** The requested Meeting Type does not exist. */
+model MeetingTypeNotFoundError {
+  statusCode: 404;
+  code: "meeting_type_not_found";
+  message: string;
+  details: MeetingTypeNotFoundDetails;
+}
+
+/** The requested date is outside the bookable horizon. */
+model DateOutOfRangeError {
+  statusCode: 400;
+  code: "date_out_of_range";
+  message: string;
+  details: DateOutOfRangeDetails;
+}
+
+/** An unexpected server error occurred; internals are only logged. */
+model InternalError {
+  statusCode: 500;
+  code: "internal_error";
+  message: string;
+}
+
+/** The requested route does not exist. */
+model NotFoundError {
+  statusCode: 404;
+  code: "not_found";
+  message: string;
+}
+
+/**
+ * A framework-level client error that is neither field validation nor
+ * not-found (for example 405 Method Not Allowed). It keeps the real HTTP
+ * status code and never exposes internals. No business operation returns it
+ * directly, but the shared error envelope can.
+ */
+model RequestError {
+  statusCode: int32;
+  code: "request_error";
+  message: string;
+}
+
+model HealthCheckOk {
+  @statusCode statusCode: 200;
+  @body body: HealthStatus;
+}
+
+model HealthCheckInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
 @route("/health")
 namespace Health {
   /** Check that the API is up and running. */
   @get
-  op check(): {
-    @statusCode statusCode: 200;
-    @body body: HealthStatus;
-  };
+  op check(): HealthCheckOk | HealthCheckInternalError;
 }
 
-model HealthStatus {
-  status: "ok";
+// ---------------------------------------------------------------------------
+// Meeting Types
+// ---------------------------------------------------------------------------
+
+model MeetingType {
+  /** Unique identifier. */
+  id: int32;
+  /** 1..100 characters, trimmed before saving. */
+  name: string;
+  /** Optional, at most 500 characters. */
+  description: string | null;
+  /** Duration in minutes, 5..240. */
+  durationMin: int32;
+  /** UTC ISO-8601 creation timestamp. */
+  createdAt: utcDateTime;
+}
+
+model CreateMeetingTypeRequest {
+  /** 1..100 characters, trimmed before saving. */
+  name: string;
+  /** Optional, at most 500 characters. */
+  description?: string;
+  /** Duration in minutes, 5..240. */
+  durationMin: int32;
+}
+
+model ListMeetingTypesOk {
+  @statusCode statusCode: 200;
+  @body body: MeetingType[];
+}
+
+model ListMeetingTypesInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+model CreateMeetingTypeOk {
+  @statusCode statusCode: 201;
+  @body body: MeetingType;
+}
+
+model CreateMeetingTypeValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model CreateMeetingTypeInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+@route("/meeting-types")
+namespace MeetingTypes {
+  /** List every meeting type. Public. */
+  @get
+  op list(): ListMeetingTypesOk | ListMeetingTypesInternalError;
+
+  /** Create a meeting type. */
+  @post
+  op create(
+    @body body: CreateMeetingTypeRequest,
+  ): CreateMeetingTypeOk | CreateMeetingTypeValidationError | CreateMeetingTypeInternalError;
+}
+
+// ---------------------------------------------------------------------------
+// Bookings
+// ---------------------------------------------------------------------------
+
+model Booking {
+  /** Unique identifier. */
+  id: int32;
+  meetingTypeId: int32;
+  /** The meeting type this booking belongs to. */
+  meetingType: MeetingType;
+  /** UTC ISO-8601 start timestamp. */
+  startAt: utcDateTime;
+  /** UTC ISO-8601 end timestamp, computed as startAt + durationMin. */
+  endAt: utcDateTime;
+  /** 1..100 characters, trimmed before saving. */
+  guestName: string;
+  /** Valid email address, at most 320 characters. */
+  guestEmail: string;
+  /** Optional, at most 2000 characters. */
+  comment: string | null;
+  /** UTC ISO-8601 creation timestamp. */
+  createdAt: utcDateTime;
+}
+
+model CreateBookingRequest {
+  meetingTypeId: int32;
+  /** ISO-8601 instant with an explicit offset or Z. */
+  startAt: utcDateTime;
+  /** 1..100 characters, trimmed before saving. */
+  guestName: string;
+  /** Valid email address, at most 320 characters. */
+  guestEmail: string;
+  /** Optional, at most 2000 characters. */
+  comment?: string;
+}
+
+model CreateBookingOk {
+  @statusCode statusCode: 201;
+  @body body: Booking;
+}
+
+model CreateBookingValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model CreateBookingMeetingTypeNotFound {
+  @statusCode statusCode: 404;
+  @body body: MeetingTypeNotFoundError;
+}
+
+model CreateBookingSlotUnavailable {
+  @statusCode statusCode: 409;
+  @body body: SlotUnavailableError;
+}
+
+model CreateBookingInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+model ListBookingsOk {
+  @statusCode statusCode: 200;
+  @body body: Booking[];
+}
+
+model ListBookingsValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model ListBookingsInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+@route("/bookings")
+namespace Bookings {
+  /**
+   * List bookings in the requested scope. `upcoming` returns every booking whose
+   * start is at or after now, ascending by start, with nested meeting types.
+   */
+  @get
+  op list(
+    /** Only `upcoming` is supported. */
+    @query scope: string,
+  ): ListBookingsOk | ListBookingsValidationError | ListBookingsInternalError;
+
+  /** Create a booking atomically; overlapping intervals are rejected with 409. */
+  @post
+  op create(
+    @body body: CreateBookingRequest,
+  ):
+    | CreateBookingOk
+    | CreateBookingValidationError
+    | CreateBookingMeetingTypeNotFound
+    | CreateBookingSlotUnavailable
+    | CreateBookingInternalError;
+}
+
+// ---------------------------------------------------------------------------
+// Availability
+// ---------------------------------------------------------------------------
+
+model Slot {
+  /** UTC ISO-8601 start timestamp. */
+  startAt: utcDateTime;
+  /** UTC ISO-8601 end timestamp. */
+  endAt: utcDateTime;
+}
+
+model ListAvailabilityOk {
+  @statusCode statusCode: 200;
+  @body body: Slot[];
+}
+
+model ListAvailabilityValidationError {
+  @statusCode statusCode: 400;
+  @body body: ValidationFailedError;
+}
+
+model ListAvailabilityDateOutOfRange {
+  @statusCode statusCode: 400;
+  @body body: DateOutOfRangeError;
+}
+
+model ListAvailabilityMeetingTypeNotFound {
+  @statusCode statusCode: 404;
+  @body body: MeetingTypeNotFoundError;
+}
+
+model ListAvailabilityInternalError {
+  @statusCode statusCode: 500;
+  @body body: InternalError;
+}
+
+@route("/availability")
+namespace Availability {
+  /** Free slots of one calendar day for a meeting type, ascending in ISO UTC. */
+  @get
+  op list(
+    @query meetingTypeId: int32,
+    /** Calendar date in the owner timezone, formatted as YYYY-MM-DD. */
+    @query date: string,
+  ):
+    | ListAvailabilityOk
+    | ListAvailabilityValidationError
+    | ListAvailabilityDateOutOfRange
+    | ListAvailabilityMeetingTypeNotFound
+    | ListAvailabilityInternalError;
 }

@@ -1,0 +1,50 @@
+// Prisma is used to author the schema and SQL migrations only.
+// The backend never uses Prisma Client: runtime reads and writes go through
+// the single better-sqlite3 connection in src/database.
+//
+// String limits are validated by the API layer (manual request validation);
+// SQLite itself does not enforce VARCHAR lengths.
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// A bookable kind of meeting created by the Calendar Owner.
+model MeetingType {
+  id          Int       @id @default(autoincrement())
+  /// 1..100 characters, trimmed before saving.
+  name        String
+  /// Optional, at most 500 characters.
+  description String?
+  /// Minutes, 5..240.
+  durationMin Int
+  /// UTC ISO-8601 string.
+  createdAt   String
+  bookings    Booking[]
+
+  @@index([name])
+}
+
+/// A confirmed reservation of a concrete time interval by a Guest.
+model Booking {
+  id            Int         @id @default(autoincrement())
+  meetingTypeId Int
+  meetingType   MeetingType @relation(fields: [meetingTypeId], references: [id], onDelete: Restrict)
+  /// UTC ISO-8601 string. Lexicographically comparable.
+  startAt       String
+  /// UTC ISO-8601 string, computed as startAt + MeetingType.durationMin.
+  /// Stored explicitly so the overlap rule does not depend on the meeting type.
+  endAt         String
+  /// 1..100 characters, trimmed before saving.
+  guestName     String
+  /// Valid email address, at most 320 characters.
+  guestEmail    String
+  /// Optional, at most 2000 characters.
+  comment       String?
+  /// UTC ISO-8601 string.
+  createdAt     String
+
+  /// Supports the overlap predicate: startAt < newEnd AND endAt > newStart.
+  @@index([startAt, endAt])
+  @@index([meetingTypeId])
+}

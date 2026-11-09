@@ -10,12 +10,27 @@
     "build:backend": "pnpm --filter backend build",
     "test:frontend": "pnpm --filter frontend test",
     "test:backend": "pnpm --filter backend test",
+    "test:e2e": "pnpm --filter backend test:e2e",
     "generate:api": "pnpm --filter typespec compile && pnpm --filter api-client generate",
-    "typecheck": "pnpm -r --if-present typecheck",
-    "lint": "pnpm -r --if-present lint"
+    "typecheck": "pnpm -r --if-present typecheck && pnpm typecheck:e2e",
+    "lint": "pnpm -r --if-present lint && pnpm lint:e2e",
+    "sync-versions": "node scripts/sync-versions.mjs",
+    "check-versions": "node scripts/sync-versions.mjs --check",
+    "test-versions": "node --test scripts/sync-versions.test.mjs",
+    "check-release-please": "node scripts/check-release-please.mjs",
+    "test-release-please": "node --test scripts/check-release-please.test.mjs",
+    "lint:e2e": "oxlint e2e playwright.config.ts scripts",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
+    "test:golden-path": "playwright test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.15.1"
+  "packageManager": "pnpm@10.15.1",
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "^24.19.2",
+    "oxlint": "^1.89.0",
+    "typescript": "~7.0.2"
+  }
 }
