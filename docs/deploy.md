@@ -48,9 +48,11 @@ Render передаёт порт через переменную окружен�
 1. В Render Dashboard: **New → Blueprint**, подключить GitHub-репозиторий — Render найдёт
    `render.yaml` в корне.
 2. Подтвердить создание сервиса `cal-clone`. Первый билд собирает образ (несколько минут)
-   и поднимает сервис на `https://cal-clone.onrender.com`.
-3. Проверить `https://cal-clone.onrender.com/health` и открыть корень — SPA и API должны
-   работать с одного origin.
+   и поднимает сервис. Поддомен `onrender.com` уникален в масштабе Render: если имя
+   `cal-clone` уже занято, платформа добавляет суффикс — текущий адрес
+   `https://cal-clone-3v43.onrender.com`.
+3. Проверить `https://cal-clone-3v43.onrender.com/health` и открыть корень — SPA и API должны
+   работать с одного origin (админка — `/admin`, запись гостя — `/book`).
 4. Запросы к API можно слать через MCP-сервер Render (`opencode.json`): он умеет смотреть
    логи, метрики и деплои, менять переменные окружения и запускать редеплой. Render не
    поддерживает OAuth dynamic client registration, поэтому сервер настроен на авторизацию
