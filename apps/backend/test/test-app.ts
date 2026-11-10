@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { INestApplication, Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -11,6 +12,15 @@ export interface TestAppContext {
   app: INestApplication<App>;
   databaseUrl: string;
   cleanup: () => Promise<void>;
+}
+
+export interface TestAppOptions {
+  /**
+   * Extra middleware registered before `init`, e.g. `configureStaticFrontend`.
+   * Must run before init to mirror `main.ts`, where the SPA fallback is
+   * registered ahead of Nest's own not-found handler.
+   */
+  configure?: (app: NestExpressApplication) => void;
 }
 
 /**
@@ -23,6 +33,7 @@ export interface TestAppContext {
  */
 export async function createTestApp(
   controllers: Type[] = [],
+  options: TestAppOptions = {},
 ): Promise<TestAppContext> {
   const directory = mkdtempSync(join(tmpdir(), 'call-calendar-e2e-'));
   const databaseUrl = `file:${join(directory, 'test.db')}`;
@@ -33,8 +44,9 @@ export async function createTestApp(
     controllers,
   }).compile();
 
-  const app = moduleFixture.createNestApplication();
+  const app = moduleFixture.createNestApplication<NestExpressApplication>();
   configureApp(app);
+  options.configure?.(app);
   await app.init();
 
   return {

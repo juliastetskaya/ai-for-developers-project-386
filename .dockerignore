@@ -1,0 +1,62 @@
+# Dependencies and build output are produced inside the image
+node_modules
+**/node_modules
+dist
+**/dist
+**/dist-ssr
+**/build
+**/out
+*.tsbuildinfo
+
+# Generated artifacts: recreated by `pnpm generate:api` during the build
+typespec/tsp-output
+packages/api-client/src/client
+
+# Local SQLite data must never leak into the image
+apps/backend/data
+*.db
+*.db-shm
+*.db-wal
+
+# Test and tooling artifacts
+test-results
+playwright-report
+blob-report
+coverage
+.cache
+.turbo
+.pnpm-store
+
+# VCS, editors, local env, agent and task tooling
+.git
+.gitattributes
+.idea
+.vscode
+.DS_Store
+.env
+.env.*
+!.env.example
+.mise
+node_modules/.cache
+
+# Repo-only files: not needed to build or run the image
+.github
+.agents
+docs
+e2e
+scripts
+playwright.config.ts
+tsconfig.e2e.json
+test-results
+playwright-report
+blob-report
+README.md
+AGENTS.md
+CHANGELOG.md
+GLOSSARY.md
+render.yaml
+docker-compose.yml
+opencode.json
+skills-lock.json
+hk.pkl
+mise.toml

@@ -54,6 +54,25 @@ test('CI installs Playwright before running the shared check gate', () => {
   assert.match(workflow, /playwright install --with-deps chromium/);
 });
 
+test('CI builds the production Docker image in a separate pull-request job', () => {
+  const workflow = read('.github/workflows/check.yml');
+  const start = workflow.search(/^ {2}docker:/m);
+  assert.notEqual(start, -1, 'check.yml must define a separate "docker" job');
+
+  const dockerJob = workflow.slice(start);
+  assert.match(
+    dockerJob,
+    /if:\s*github\.event_name == 'pull_request'/,
+    'the docker job must run on pull requests only',
+  );
+  assert.match(dockerJob, /run: mise run docker:build/);
+  assert.doesNotMatch(
+    dockerJob,
+    /run: mise run setup/,
+    'the docker job builds inside the image, so it must not install workspace dependencies',
+  );
+});
+
 test('mise test includes backend e2e tests', () => {
   assert.match(miseTask('test'), /test:e2e/);
 });

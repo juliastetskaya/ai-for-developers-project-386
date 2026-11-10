@@ -58,6 +58,7 @@ mise run setup   # установить зависимости и сгенери
 - `mise run test:e2e` — только e2e-тесты backend
 - `mise run e2e:golden` — Playwright golden path гостя против реально запущенных backend и frontend (входит в `check` и CI, см. [Golden path](#golden-path-playwright))
 - `mise run check` — все проверки разом: линтинг, типы, тесты (unit + e2e), браузерный golden path, сборка, актуальность сгенерированного SDK, единая версия пакетов и валидация CI (эта же команда запускается в GitHub Actions, см. [docs/ci.md](docs/ci.md))
+- `mise run docker:build` — собрать прод-образ `cal-clone:local` (в GitHub Actions это отдельная проверка `docker` на pull request)
 - `mise run check:versions` — проверить, что версии всех workspace-пакетов совпадают с корневой (входит в `check`)
 - `mise run check:release-please` — проверить конфигурацию release-please: единый пакет, совпадение версии манифеста с корневой, покрытие всех workspace-пакетов в `extra-files` (входит в `check`)
 
@@ -125,6 +126,52 @@ mise daemons ls       # состояние
 mise daemons logs     # логи
 mise daemons stop     # остановить
 ```
+
+### Docker
+
+Прод-образ собирается из одного `Dockerfile` (multi-stage): NestJS backend раздаёт и API, и
+собранный React SPA, поэтому всё приложение отвечает на одном порту.
+
+```bash
+mise run docker:build   # docker build --tag cal-clone:local .
+mise run docker:up      # docker compose up --build → http://localhost:3000
+mise run docker:down    # остановить (том с базой сохраняется)
+```
+
+Без mise:
+
+```bash
+docker build -t cal-clone:local .
+docker compose up --build
+```
+
+Что важно знать:
+
+- **Один порт.** Внутри контейнера приложение слушает `PORT` (по умолчанию `3000`), наружу
+  compose пробрасывает его через `APP_PORT` (`APP_PORT=8080 docker compose up` → `http://localhost:8080`).
+- **Frontend собирается с пустым `VITE_API_URL`**, поэтому браузер ходит в API по тому же
+  origin (`/meeting-types`, `/bookings`, …). Сборка образа принимает этот параметр как build arg.
+- **База живёт в томе.** `DATABASE_URL` указывает на `file:/data/app.db`, а `/data` смонтирован
+  как именованный том `sqlite-data`, так что брони переживают перезапуск и пересборку контейнера.
+  Удалить данные: `docker compose down -v`.
+- **Миграции Prisma** (`apps/backend/prisma/migrations`) применяются автоматически при старте:
+  backend читает их из рабочего каталога, поэтому в образ копируется каталог `prisma` и
+  `WORKDIR` выставлен в `apps/backend`. Prisma Client в рантайме не используется.
+- **Конфигурация через переменные окружения:** `PORT`, `DATABASE_URL` (абсолютный путь на томе),
+  `FRONTEND_DIST` (по умолчанию `apps/frontend/dist`, менять нужно только при нестандартной
+  раскладке). `docker stop` закрывает SQLite-соединение по `SIGTERM`.
+- **Приложение работает от пользователя `node`.** Entrypoint стартует от `root` только чтобы
+  выставить владельца `$DATA_DIR` (`/data`) и сразу сбрасывает права через `setpriv` — это нужно
+  для дисков Render, которые могут приехать root-owned.
+- **Порт задаёт окружение:** приложение слушает `$PORT`, а без переменной — `3000`
+  (compose передаёт `PORT=3000` явно). Хардкода порта в образе нет.
+- **Деплой на Render** описан в `render.yaml` (Blueprint: Docker-образ, health check
+  `/health`, `plan: free`, выкат только после зелёного `check`). На free-плане нет диска,
+  поэтому SQLite эфемерный и обнуляется при деплое/рестарте — это выбранный режим для демо,
+  как включить постоянное хранение — [docs/deploy.md](docs/deploy.md).
+- **Сборка образа проверяется в CI отдельной задачей `docker`** на pull request
+  (`mise run docker:build`), поэтому поломка `Dockerfile`, `.dockerignore` или entrypoint
+  видна до мёржа. В `mise run check` она не входит: сборка образа заметно дольше остальных гейтов.
 
 ### Git-хуки
 

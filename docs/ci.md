@@ -9,12 +9,24 @@ the PR check pipeline.
 
 ## What the pipeline does
 
+The workflow has two independent jobs.
+
+### `check` (push and pull request)
+
 1. `actions/checkout` — checks out the PR head; no repository secrets are used.
 2. `jdx/mise-action` — installs the pinned toolchain from `mise.toml`
    (Node, pnpm, hk, pitchfork, actionlint).
 3. `mise run setup` — `pnpm install` + `pnpm generate:api` (TypeSpec → OpenAPI → SDK).
 4. `pnpm exec playwright install --with-deps chromium` — the browser for the golden path.
 5. `mise run check` — the same gate developers run locally.
+
+### `docker` (pull request only)
+
+The second job installs the same mise toolchain and runs `mise run docker:build`
+(`docker build --tag cal-clone:local .`). It guards the production artifact — `Dockerfile`,
+`.dockerignore`, `docker-entrypoint.sh` and the same-origin SPA build — which the `check`
+gate never touches. It runs on pull requests only and is not part of `mise run check`:
+the image build takes several minutes and would slow down the main gate.
 
 `mise run check` fans out to:
 
@@ -48,6 +60,7 @@ mise run test           # backend unit + backend e2e + frontend
 mise run test:e2e       # backend e2e only (independent)
 mise run e2e:golden     # Playwright golden path (also part of `check`)
 mise run build          # backend build + frontend build
+mise run docker:build   # production Docker image (also a separate PR job in CI)
 mise run check:sdk      # generated SDK freshness
 mise run check:versions # single-version drift across workspace packages
 mise run check:release-please # release-please config matches the single version
@@ -98,6 +111,11 @@ gh api repos/{owner}/{repo}/branches/main/protection \
 `check` is the workflow/job name from `check.yml`; if the job is renamed, update the
 required context too. The protection requires admin permission on the repository — if
 the API answers `403`, the repository owner must run the command above.
+
+The `docker` job is deliberately **not** a required status check: it only guards the
+production artifact, and a red image build must not block merging unrelated fixes. Treat it
+as a signal — if GitHub reports a failing `docker` check on a PR, fix or explicitly discuss
+it before merging.
 
 `integration/call-calendar` is currently a local integration branch and is not pushed
 to `origin`. If it becomes a remote branch that receives PRs, protect it with the same
