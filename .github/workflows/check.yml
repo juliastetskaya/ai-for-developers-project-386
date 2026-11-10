@@ -31,3 +31,19 @@ jobs:
 
       - name: Run all checks
         run: mise run check
+
+  # Separate job: the image build is slow and only guards the production
+  # artifact (Dockerfile, .dockerignore, entrypoint, same-origin SPA build), so
+  # it runs on pull requests without delaying the main `check` gate.
+  docker:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install mise and tools
+        uses: jdx/mise-action@v5
+
+      - name: Build the production Docker image
+        run: mise run docker:build
