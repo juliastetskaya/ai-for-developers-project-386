@@ -45,6 +45,18 @@ run = "pnpm test:e2e"
 description = "Run the Playwright golden path against the real backend and frontend (not part of `check`)"
 run = "pnpm test:golden-path"
 
+[tasks."docker:build"]
+description = "Build the single production Docker image (backend + SPA on one port)"
+run = "docker build --tag cal-clone:local ."
+
+[tasks."docker:up"]
+description = "Run the app with Docker Compose on http://localhost:3000 (SQLite persisted in a named volume)"
+run = "docker compose up --build"
+
+[tasks."docker:down"]
+description = "Stop the Docker Compose stack (the SQLite volume is kept)"
+run = "docker compose down"
+
 [tasks."check:sdk"]
 description = "Verify the generated API SDK is up to date"
 run = """

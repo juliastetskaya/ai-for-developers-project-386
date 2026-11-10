@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        # Same-origin API calls: the backend serves both the SPA and the API.
+        VITE_API_URL: ''
+    image: cal-clone:local
+    # Proper signal forwarding and zombie reaping for `docker stop`.
+    init: true
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      # SQLite file lives on the volume below, so data survives restarts and rebuilds.
+      DATABASE_URL: file:/data/app.db
+    volumes:
+      - sqlite-data:/data
+    restart: unless-stopped
+    stop_grace_period: 10s
+
+volumes:
+  sqlite-data:
