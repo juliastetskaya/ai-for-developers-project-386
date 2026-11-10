@@ -1,0 +1,37 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+#
+# Connect the repository in the Render Dashboard → New → Blueprint and point it
+# at this file. The service builds the same Dockerfile used locally and serves
+# the SPA and the API on $PORT. Details: docs/deploy.md.
+services:
+  - type: web
+    name: cal-clone
+    runtime: docker
+    # Chosen deployment mode: the free plan, with SQLite on the container's
+    # ephemeral filesystem. Data resets on every deploy, restart, or spin-down;
+    # this is accepted for the demo (see docs/deploy.md).
+    # For durable data: switch to a paid plan (e.g. 0.5c-512mb) and add the
+    # `disk` block at the bottom of this service.
+    plan: free
+    region: frankfurt
+    # Deploy the commits that land on main only.
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Render routes traffic to $PORT: the app binds it and never hardcodes one.
+    healthCheckPath: /health
+    # Deploy only after the `check` workflow on the pushed commit is green.
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: '10000'
+      - key: NODE_ENV
+        value: production
+      # Ephemeral on the free plan; must match the disk mount path if you add one.
+      - key: DATABASE_URL
+        value: file:/data/app.db
+    # Durable SQLite (requires a paid plan — uncomment together with the plan above):
+    # disk:
+    #   name: sqlite-data
+    #   mountPath: /data
+    #   sizeGB: 1
