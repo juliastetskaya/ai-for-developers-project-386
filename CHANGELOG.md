@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/juliastetskaya/ai-for-developers-project-386/compare/v1.1.0...v1.2.0) (2026-11-11)
+
+
+### Features
+
+* deploy the app as a single Docker image on Render ([55b225a](https://github.com/juliastetskaya/ai-for-developers-project-386/commit/55b225a9fd433c760d8bdaf89b77e0f4e5049b0e))
+* serve the SPA and API from one production image ([a788d40](https://github.com/juliastetskaya/ai-for-developers-project-386/commit/a788d406cad5f904f4fe8d16d70e2c610c002598))
+
 ## [1.1.0](https://github.com/juliastetskaya/ai-for-developers-project-386/compare/v1.0.0...v1.1.0) (2026-11-09)
 
 
