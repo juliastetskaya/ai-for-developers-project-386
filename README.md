@@ -2,182 +2,70 @@
 
 [![hexlet-check](https://github.com/juliastetskaya/ai-for-developers-project-386/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/juliastetskaya/ai-for-developers-project-386/actions)
 
-Разработайте совместно с ИИ сервис для бронирования календаря
+Упрощённый клон cal.com: один владелец календаря публикует типы встреч, гости бронируют
+свободные слоты без регистрации. Однопользовательское приложение без авторизации; часовой
+пояс владельца фиксирован (`Europe/Moscow`), хранение и API работают в UTC.
 
-## Пользовательский путь
+Демо: **https://cal-clone-3v43.onrender.com** — `/book` для гостя, `/admin` для владельца.
+Бесплатный план Render держит SQLite на эфемерной файловой системе: данные сбрасываются при
+каждом деплое и рестарте (см. [деплой](docs/deploy.md)).
 
-Упрощённый клон cal.com. В проекте нет авторизации, личных кабинетов и интеграций с внешними календарями — функциональность намеренно ограничена, чтобы сосредоточиться на главном.
+## Возможности
 
-### Роль: владелец календаря (один, задан заранее)
+- Владелец создаёт **Meeting Types** (название, описание, длительность 5–240 минут) и видит все
+  предстоящие **Bookings**.
+- Гость выбирает тип встречи, день из 14-дневного горизонта и свободный **Slot**, затем оставляет
+  имя, email и комментарий.
+- Свободные слоты = рабочее окно 09:00–18:00 минус занятые интервалы; пересечение по времени
+  блокирует слот глобально для всех типов встреч.
+- Бронь создаётся атомарно: гонка за слот заканчивается `409 slot_unavailable` для проигравшего.
 
-1. **Создание типа встречи.** Открывает раздел управления (без авторизации — приложение однопользовательское), жмёт «Новый тип встречи», заполняет форму: название (обязательно), описание (опционально), длительность в минутах (обязательно, например 15/30/60). Сохраняет — тип появляется в списке.
-2. **Просмотр предстоящих встреч.** На главной странице управления видит список всех будущих бронирований всех типов: тип встречи, дата и время, имя и email гостя. Прошедшие встречи в список не попадают.
+Подробности устройства, слоёв и инвариантов — в [docs/architecture.md](docs/architecture.md).
 
-### Роль: гость (без регистрации)
+## Быстрый старт
 
-3. **Выбор типа встречи.** Открывает публичную страницу, видит карточки всех типов встреч (название, описание, длительность), выбирает нужный.
-4. **Выбор дня.** Открывается календарь на ближайшие 14 дней от сегодняшней даты. Гость кликает на день.
-5. **Выбор слота.** Видит список свободных слотов выбранного дня, нарезанных по длительности типа встречи внутри фиксированного рабочего окна владельца (например, 9:00–18:00). Занятые слоты (любым типом встречи) исключены или показаны недоступными.
-6. **Бронирование.** Гость выбирает слот, вводит имя, email и комментарий, подтверждает. Сервер создаёт бронь и показывает экран подтверждения с деталями встречи.
-
-### Ключевые бизнес-правила
-
-- **Слот занят глобально:** пересечение по времени с любой существующей бронью (любого типа) делает время недоступным — одно и то же время нельзя занять дважды.
-- **Свободные слоты = рабочие часы − занятые интервалы** (учитывается длительность выбранного типа встречи).
-- **Доступность владельца** задаётся фиксированными рабочими часами — нарезка слотов идёт только внутри этого окна.
-- **Данные гостя при бронировании:** имя, email, комментарий.
-- **Часовой пояс не выбирается пользователем:** рабочие часы владельца, «сегодня» и горизонт фиксированы в `Europe/Moscow` (константа), а хранение и API работают в UTC. Гость видит время в поясе владельца. Подробности — в [ADR 0003](docs/adr/0003-owner-timezone-and-booking-horizon.md).
-- Нет отмены/переноса, уведомлений, авторизации и выбора часового пояса — сознательно вне скоупа.
-
-## Стек
-
-- Разное
-
-## Установка
-
-Окружение разработки управляется через [mise](https://mise.jdx.dev/): версии инструментов (Node.js, pnpm, hk, pitchfork) зафиксированы в `mise.toml`.
+Окружение и версии инструментов фиксирует [mise](https://mise.jdx.dev/): Node 22, pnpm 10, hk,
+pitchfork.
 
 ```bash
 git clone https://github.com/juliastetskaya/ai-for-developers-project-386.git
 cd ai-for-developers-project-386
-mise install     # установить инструменты из mise.toml
-mise run setup   # установить зависимости и сгенерировать API SDK
+mise install     # инструменты из mise.toml
+mise run setup   # зависимости + сгенерированный API SDK
+mise run dev:backend    # API на http://localhost:3000
+mise run dev:frontend   # SPA на http://localhost:5173
 ```
 
-## Использование
+## Команды
 
-<!-- Добавьте примеры запуска и запись asciinema — именно это смотрит работодатель -->
+| Команда | Что делает |
+| --- | --- |
+| `mise run dev:backend` / `dev:frontend` | dev-серверы по отдельности; `mise daemons start` — оба в фоне |
+| `mise run build` | сборка backend и frontend |
+| `mise run test` | unit- и e2e-тесты backend, тесты frontend |
+| `mise run e2e:golden` | Playwright golden path гостя против реальных серверов |
+| `mise run docker:build` / `docker:up` / `docker:down` | прод-образ и локальный запуск через Compose |
+| `mise run check` | полный гейт: lint, типы, тесты, golden path, сборка, свежесть SDK, версии, CI-конфиг |
+| `pnpm generate:api` | перегенерировать OpenAPI и SDK после правок `typespec/` |
 
-### Команды mise
+`mise run check` — то же, что запускает CI; он должен быть зелёным перед мёржем.
+Git-хуки (hk): lint на коммит, `mise run check` на пуш, Conventional Commits в сообщении.
 
-- `mise run dev:backend` / `mise run dev:frontend` — запуск dev-серверов вручную
-- `mise run build` — сборка backend и frontend
-- `mise run lint` — линтинг всех пакетов
-- `mise run typecheck` — проверка типов во всех пакетах
-- `mise run test` — unit-тесты backend, e2e-тесты backend и тесты frontend
-- `mise run test:e2e` — только e2e-тесты backend
-- `mise run e2e:golden` — Playwright golden path гостя против реально запущенных backend и frontend (входит в `check` и CI, см. [Golden path](#golden-path-playwright))
-- `mise run check` — все проверки разом: линтинг, типы, тесты (unit + e2e), браузерный golden path, сборка, актуальность сгенерированного SDK, единая версия пакетов и валидация CI (эта же команда запускается в GitHub Actions, см. [docs/ci.md](docs/ci.md))
-- `mise run docker:build` — собрать прод-образ `cal-clone:local` (в GitHub Actions это отдельная проверка `docker` на pull request)
-- `mise run check:versions` — проверить, что версии всех workspace-пакетов совпадают с корневой (входит в `check`)
-- `mise run check:release-please` — проверить конфигурацию release-please: единый пакет, совпадение версии манифеста с корневой, покрытие всех workspace-пакетов в `extra-files` (входит в `check`)
+## Документация
 
-### Версионирование
+| Документ | О чём |
+| --- | --- |
+| [docs/architecture.md](docs/architecture.md) | слои, поток запроса, домен, данные, тестирование |
+| [docs/deploy.md](docs/deploy.md) | Render, порт, миграции, ограничения free-плана |
+| [docs/ci.md](docs/ci.md) | пайплайн, задачи `check` и `docker`, branch protection |
+| [docs/releases.md](docs/releases.md) | release-please, теги и CHANGELOG |
+| [docs/versioning.md](docs/versioning.md) | единая версия во всех пакетах |
+| [GLOSSARY.md](GLOSSARY.md) | язык домена: Meeting Type, Booking, Slot, Working Window |
+| [docs/adr/](docs/adr/) | принятые архитектурные решения |
+| [AGENTS.md](AGENTS.md) | соглашения для агентов и участников |
 
-Версия у проекта одна на весь монорепозиторий. Источник истины — поле `version` в корневом
-`package.json`; `pnpm sync-versions` проставляет её во все workspace-пакеты, а
-`pnpm check-versions` (в составе `mise run check`) ловит расхождения. Подробности, правило
-синхронизации и требования к `release-please` — в [docs/versioning.md](docs/versioning.md).
+## Стек
 
-### Релизы
-
-Релизы готовятся автоматически через release-please: на push в `main` он открывает Release PR
-с новой версией и CHANGELOG, а после мёржа создаёт GitHub Release и тег `vX.Y.Z`. Версию
-определяют Conventional Commits: `feat` — minor, `fix`/`perf`/`revert` — patch,
-`!`/`BREAKING CHANGE` — major; остальные типы релиз не создают. Полный флоу и таблица типов —
-в [docs/releases.md](docs/releases.md).
-
-### Golden path (Playwright)
-
-Один сквозной браузерный сценарий гостя: Landing → `/book` → выбор Meeting Type → выбор дня →
-свободный Slot → форма (имя, email, комментарий) → экран подтверждения. Тест работает против
-настоящих backend и frontend.
-
-Предусловия:
-
-```bash
-mise install                     # инструменты из mise.toml
-mise run setup                   # зависимости и сгенерированный API SDK
-pnpm exec playwright install chromium   # один раз: браузер для Playwright
-```
-
-Запуск:
-
-```bash
-mise run e2e:golden              # или pnpm test:golden-path
-```
-
-`mise run check` запускает этот сценарий автоматически, поэтому отдельная команда нужна
-только для отладки. Golden path использует отдельные порты `3100` (API) и `5273` (frontend),
-поэтому не конфликтует с dev-серверами на `3000`/`5173`.
-
-Что происходит:
-
-- Playwright поднимает оба сервера сам (`webServer`): backend на `http://localhost:3100`,
-  frontend на `http://localhost:5273`, и останавливает их после прогона.
-- Backend запускается обёрткой `scripts/playwright-backend.mjs` с отдельной SQLite-базой
-  во временном каталоге (`<tmp>/call-calendar-playwright/e2e.db`). Файлы базы удаляются перед
-  каждым запуском, миграции применяются при старте, поэтому прогоны изолированы и dev-база
-  не затрагивается.
-- Тест сам создаёт уникальный Meeting Type через API и выбирает второй день горизонта
-  (завтра по Europe/Moscow), поэтому не зависит от Owner Dashboard и существующих данных.
-- Команда **входит** в `mise run check` и CI: локально и в GitHub Actions сценарий проходит
-  в настоящем браузере против реальных серверов, без подмены ответов API бронирования.
-- Файлы golden path (`e2e/`, `playwright.config.ts`, `scripts/`) дополнительно проверяются
-  офлайн: `lint` запускает oxlint, а `typecheck` — `tsc -p tsconfig.e2e.json`.
-
-### Фоновые серверы (демоны)
-
-Dev-серверы можно запускать как демоны через pitchfork:
-
-```bash
-mise daemons start    # запустить backend (порт 3000) и frontend (порт 5173)
-mise daemons ls       # состояние
-mise daemons logs     # логи
-mise daemons stop     # остановить
-```
-
-### Docker
-
-Прод-образ собирается из одного `Dockerfile` (multi-stage): NestJS backend раздаёт и API, и
-собранный React SPA, поэтому всё приложение отвечает на одном порту.
-
-```bash
-mise run docker:build   # docker build --tag cal-clone:local .
-mise run docker:up      # docker compose up --build → http://localhost:3000
-mise run docker:down    # остановить (том с базой сохраняется)
-```
-
-Без mise:
-
-```bash
-docker build -t cal-clone:local .
-docker compose up --build
-```
-
-Что важно знать:
-
-- **Один порт.** Внутри контейнера приложение слушает `PORT` (по умолчанию `3000`), наружу
-  compose пробрасывает его через `APP_PORT` (`APP_PORT=8080 docker compose up` → `http://localhost:8080`).
-- **Frontend собирается с пустым `VITE_API_URL`**, поэтому браузер ходит в API по тому же
-  origin (`/meeting-types`, `/bookings`, …). Сборка образа принимает этот параметр как build arg.
-- **База живёт в томе.** `DATABASE_URL` указывает на `file:/data/app.db`, а `/data` смонтирован
-  как именованный том `sqlite-data`, так что брони переживают перезапуск и пересборку контейнера.
-  Удалить данные: `docker compose down -v`.
-- **Миграции Prisma** (`apps/backend/prisma/migrations`) применяются автоматически при старте:
-  backend читает их из рабочего каталога, поэтому в образ копируется каталог `prisma` и
-  `WORKDIR` выставлен в `apps/backend`. Prisma Client в рантайме не используется.
-- **Конфигурация через переменные окружения:** `PORT`, `DATABASE_URL` (абсолютный путь на томе),
-  `FRONTEND_DIST` (по умолчанию `apps/frontend/dist`, менять нужно только при нестандартной
-  раскладке). `docker stop` закрывает SQLite-соединение по `SIGTERM`.
-- **Приложение работает от пользователя `node`.** Entrypoint стартует от `root` только чтобы
-  выставить владельца `$DATA_DIR` (`/data`) и сразу сбрасывает права через `setpriv` — это нужно
-  для дисков Render, которые могут приехать root-owned.
-- **Порт задаёт окружение:** приложение слушает `$PORT`, а без переменной — `3000`
-  (compose передаёт `PORT=3000` явно). Хардкода порта в образе нет.
-- **Деплой на Render** описан в `render.yaml` (Blueprint: Docker-образ, health check
-  `/health`, `plan: free`, выкат только после зелёного `check`). Публичный инстанс —
-  https://cal-clone-3v43.onrender.com (`/book` — запись гостя, `/admin` — кабинет владельца).
-  На free-плане нет диска, поэтому SQLite эфемерный и обнуляется при деплое/рестарте —
-  это выбранный режим для демо, как включить постоянное хранение — [docs/deploy.md](docs/deploy.md).
-- **Сборка образа проверяется в CI отдельной задачей `docker`** на pull request
-  (`mise run docker:build`), поэтому поломка `Dockerfile`, `.dockerignore` или entrypoint
-  видна до мёржа. В `mise run check` она не входит: сборка образа заметно дольше остальных гейтов.
-
-### Git-хуки
-
-Хуки настроены через [hk](https://hk.jdx.dev/) (конфиг — `hk.pkl`):
-
-- `pre-commit` — линтинг
-- `pre-push` — все проверки (`mise run check`)
-- `commit-msg` — проверка сообщения на соответствие Conventional Commits
+NestJS 12 + better-sqlite3 на бэкенде, React 19 + Vite + Tailwind CSS 4 на фронтенде,
+TypeSpec → OpenAPI → типизированный SDK в `packages/api-client`, pnpm-workspace, Docker и
+Render Blueprint.

@@ -1,8 +1,9 @@
 # Деплой на Render
 
 Прод — тот же единственный Docker-образ, что собирается локально: NestJS backend
-раздаёт собранный React SPA и API на одном порту. Docker-часть описана в
-[README](../README.md#docker), инфраструктура Render — в [`render.yaml`](../render.yaml).
+раздаёт собранный React SPA и API на одном порту. Устройство образа описано в
+[architecture.md](architecture.md#сборка-запуск-и-деплой), инфраструктура Render — в
+[`render.yaml`](../render.yaml).
 
 Деплой рассчитан на **бесплатный план** Render: сервис живёт на `*.onrender.com`, диск не
 используется, SQLite хранится на эфемерной файловой системе контейнера.
