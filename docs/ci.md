@@ -76,8 +76,8 @@ both locally and in CI with the real backend and frontend and a dedicated SQLite
 It uses dedicated ports `3100` (API) and `5273` (frontend), so it does not collide with the
 dev servers on `3000`/`5173`. Its TypeScript and scripts are also covered offline: `lint`
 runs oxlint over `e2e/`, `playwright.config.ts` and `scripts/`, and `typecheck` runs
-`tsc -p tsconfig.e2e.json`. It is documented in the
-[README](../README.md#golden-path-playwright).
+`tsc -p tsconfig.e2e.json`. It is documented in
+[architecture.md](architecture.md#тестирование).
 
 ## Required status check / branch protection
 
