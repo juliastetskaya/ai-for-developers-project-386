@@ -74,6 +74,10 @@ if [ -d "$TMP_DIR/client-before" ] && ! diff -r "$TMP_DIR/client-before" "$SDK_D
 fi
 """
 
+[tasks."check:sdk-usage"]
+description = "Verify the frontend talks to the API through the generated SDK"
+run = "node --test scripts/check-sdk-usage.test.mjs && node scripts/check-sdk-usage.mjs"
+
 [tasks."check:versions"]
 description = "Verify every workspace package uses the root package version"
 run = "pnpm test-versions && pnpm check-versions"
@@ -94,6 +98,7 @@ run = """
 set -e
 mise run lint
 mise run check:sdk
+mise run check:sdk-usage
 mise run typecheck
 mise run test
 mise run e2e:golden

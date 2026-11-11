@@ -37,6 +37,7 @@ test('mise check runs every gate sequentially: lint, SDK freshness, typecheck, u
   for (const gate of [
     'lint',
     'check:sdk',
+    'check:sdk-usage',
     'typecheck',
     'test',
     'e2e:golden',

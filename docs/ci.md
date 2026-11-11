@@ -38,6 +38,7 @@ the image build takes several minutes and would slow down the main gate.
 | `e2e:golden` | the Playwright guest flow against real backend + frontend servers and a dedicated SQLite database; the booking API is never mocked. |
 | `build`     | backend (`nest build`) and frontend (`vite build`) compile.           |
 | `check:sdk` | regenerating the SDK produces no diff (generated artifacts are fresh).|
+| `check:sdk-usage` | the frontend imports the generated `api-client`, and raw HTTP calls stay in the single adapter `apps/frontend/src/lib/api.ts`. |
 | `check:versions` | every workspace package uses the root `package.json` version.       |
 | `check:release-please` | release-please config: one root package, manifest version matches the root, every workspace manifest is in `extra-files`. |
 | `check:ci`  | CI config invariants (`scripts/ci-config.test.mjs`) + `actionlint`.   |
@@ -62,6 +63,7 @@ mise run e2e:golden     # Playwright golden path (also part of `check`)
 mise run build          # backend build + frontend build
 mise run docker:build   # production Docker image (also a separate PR job in CI)
 mise run check:sdk      # generated SDK freshness
+mise run check:sdk-usage # frontend uses the generated SDK, no raw HTTP
 mise run check:versions # single-version drift across workspace packages
 mise run check:release-please # release-please config matches the single version
 mise run check:ci       # workflow/config validation

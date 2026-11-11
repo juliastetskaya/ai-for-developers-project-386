@@ -45,7 +45,7 @@ mise run dev:frontend   # SPA на http://localhost:5173
 | `mise run test` | unit- и e2e-тесты backend, тесты frontend |
 | `mise run e2e:golden` | Playwright golden path гостя против реальных серверов |
 | `mise run docker:build` / `docker:up` / `docker:down` | прод-образ и локальный запуск через Compose |
-| `mise run check` | полный гейт: lint, типы, тесты, golden path, сборка, свежесть SDK, версии, CI-конфиг |
+| `mise run check` | полный гейт: lint, типы, тесты, golden path, сборка, свежесть и использование SDK, версии, CI-конфиг |
 | `pnpm generate:api` | перегенерировать OpenAPI и SDK после правок `typespec/` |
 
 `mise run check` — то же, что запускает CI; он должен быть зелёным перед мёржем.
